@@ -1,0 +1,84 @@
+{
+  "summary": {
+    "passed": 6,
+    "total": 6,
+    "bySelectedMode": {
+      "filled": 2,
+      "stroke": 4
+    }
+  },
+  "rows": [
+    {
+      "id": "hybrid_pin_route",
+      "kind": "hybrid",
+      "expectedMode": "filled",
+      "selectedMode": "filled",
+      "renderer": "filled-silhouette-unet+potrace-default",
+      "foregroundRatio": 0.168884,
+      "autoDecision": "filled_area_ratio=1.26; filled score close enough and mask is materially larger",
+      "iou": 0.96435,
+      "precision": 0.967835,
+      "recall": 0.99628,
+      "f1": 0.981852,
+      "passed": true
+    },
+    {
+      "id": "hybrid_tag_string",
+      "kind": "hybrid",
+      "expectedMode": "filled",
+      "selectedMode": "filled",
+      "renderer": "filled-silhouette-unet+potrace-default",
+      "foregroundRatio": 0.304688,
+      "autoDecision": "filled_area_ratio=1.38; filled score close enough and mask is materially larger",
+      "iou": 0.941399,
+      "precision": 0.946114,
+      "recall": 0.994735,
+      "f1": 0.969815,
+      "passed": true
+    },
+    {
+      "id": "hybrid_star_orbit",
+      "kind": "hybrid",
+      "expectedMode": "any",
+      "selectedMode": "stroke",
+      "renderer": "nn-gated-unet+potrace-default",
+      "foregroundRatio": 0.131775,
+      "autoDecision": "stroke_default; filled_area_ratio=1.01; filled_area=0.133; stroke_area=0.132",
+      "iou": 0.834639,
+      "precision": 0.888374,
+      "recall": 0.932426,
+      "f1": 0.909867,
+      "passed": true
+    },
+    {
+      "id": "outline_cube",
+      "kind": "outline",
+      "expectedMode": "stroke",
+      "selectedMode": "stroke",
+      "renderer": "nn-gated-unet+potrace-default",
+      "foregroundRatio": 0.150696,
+      "autoDecision": "stroke_default; filled_area_ratio=0.97; filled_area=0.146; stroke_area=0.151",
+      "passed": true
+    },
+    {
+      "id": "outline_check_circle",
+      "kind": "outline",
+      "expectedMode": "stroke",
+      "selectedMode": "stroke",
+      "renderer": "nn-gated-unet+potrace-default",
+      "foregroundRatio": 0.125183,
+      "autoDecision": "stroke_default; filled_area_ratio=0.98; filled_area=0.122; stroke_area=0.125",
+      "passed": true
+    },
+    {
+      "id": "outline_chat_slash",
+      "kind": "outline",
+      "expectedMode": "stroke",
+      "selectedMode": "stroke",
+      "renderer": "nn-gated-unet+potrace-default",
+      "foregroundRatio": 0.214722,
+      "autoDecision": "stroke_default; filled_area_ratio=0.98; filled_area=0.211; stroke_area=0.215",
+      "passed": true
+    }
+  ]
+}

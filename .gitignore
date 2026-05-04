@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.venv/
+dist/
+build/
+*.egg-info/
+auto_icon_vectorizer/runtime/node_modules/
+examples/regression-output/
+examples/*-source.png
+examples/*-mask.png
+examples/*-rendered.png
+examples/*.html
+examples/*.svg

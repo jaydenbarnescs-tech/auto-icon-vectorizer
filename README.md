@@ -1,0 +1,276 @@
+# Auto Icon Vectorizer
+
+Convert a cropped raster UI icon into clean inline SVG HTML.
+
+This repository packages the icon vectorization component that was built for a
+recursive UI skeleton extractor. The component assumes icon detection has
+already happened: it receives a small image crop containing one icon, removes
+the background, traces the foreground mask with Potrace, and returns HTML with
+an inline SVG.
+
+The production renderer is:
+
+```text
+auto-stroke-filled+potrace-default
+```
+
+It runs two learned mask branches and selects the one that reconstructs the crop
+best:
+
+```text
+stroke / outline icons
+  -> gated U-Net stroke mask
+  -> Potrace
+  -> inline SVG HTML
+
+filled / silhouette / hybrid icons
+  -> filled-silhouette U-Net mask
+  -> Potrace
+  -> inline SVG HTML
+```
+
+## Current Results
+
+Regression routing sheet:
+
+![regression sheet](examples/icon-vectorizer-regression.png)
+
+Hybrid fill+stroke stress sheet:
+
+![hybrid sheet](examples/hybrid-fill-stroke-eval-after-auto-threshold.png)
+
+Real outline-vs-filled diagnostic sheet:
+
+![real diagnostic sheet](examples/real-filled-vs-stroke-eval.png)
+
+The included regression checks currently pass:
+
+```text
+6/6 routing cases passed
+selected masks: filled=2, stroke=4
+```
+
+## Install
+
+Requirements:
+
+- Python 3.9+
+- Node.js + npm
+- Python packages listed in `pyproject.toml`
+- Node package `potrace`, installed into `auto_icon_vectorizer/runtime`
+
+Local install:
+
+```bash
+git clone https://github.com/jaydenbarnescs-tech/auto-icon-vectorizer.git
+cd auto-icon-vectorizer
+python3 -m pip install -e .
+python3 -m auto_icon_vectorizer.install_runtime
+```
+
+The Node install step is required because the final bitmap-to-SVG tracing call
+uses the npm `potrace` package. The neural network checkpoints are included in
+the repo; the large training feature cache is intentionally not included.
+
+## CLI Usage
+
+```bash
+auto-icon-vectorizer path/to/icon-crop.png \
+  --out-prefix examples/my-icon \
+  --json examples/my-icon.json \
+  --node-id my_icon \
+  --class-name vector-icon
+```
+
+The command writes:
+
+- `examples/my-icon.svg`
+- `examples/my-icon.html`
+- `examples/my-icon-source.png`
+- `examples/my-icon-mask.png`
+- `examples/my-icon-rendered.png`
+- `examples/my-icon.json`
+
+Run the packaged regression sheet:
+
+```bash
+auto-icon-vectorizer-regression
+```
+
+## Python API
+
+```python
+from pathlib import Path
+from PIL import Image
+from auto_icon_vectorizer import vectorize_icon_crop
+
+crop = Image.open("icon-crop.png").convert("RGB")
+result = vectorize_icon_crop(
+    crop,
+    node_id="feature_icon_001",
+    class_name="vector-icon feature-icon",
+    output_prefix=Path("out/feature_icon_001"),
+    mask_mode="auto",
+)
+
+html = result["html"]  # <span ...><svg ...>...</svg></span>
+svg = result["svg"]    # raw SVG only
+diagnostics = result["diagnostics"]
+```
+
+The component contract is intentionally UI-builder friendly:
+
+```python
+{
+    "html": "...inline SVG HTML...",
+    "svg": "...raw SVG...",
+    "primitives": [
+        {"type": "potrace_path", "pathCount": 1, "renderer": "..."}
+    ],
+    "diagnostics": {
+        "pipelineRenderer": "auto-stroke-filled+potrace-default",
+        "renderer": "filled-silhouette-unet+potrace-default",
+        "requestedMaskMode": "auto",
+        "selectedMaskMode": "filled",
+        "maskStrategy": "filled-silhouette-unet",
+        "foregroundPixels": 5183,
+        "strokeColor": "#c84a2b",
+        "candidateScores": [...]
+    }
+}
+```
+
+## What The Algorithm Takes As Input
+
+Input is an already-cropped raster icon image.
+
+Good inputs:
+
+- a 32-256 px crop around a single UI icon
+- icon can be on dark, light, noisy, textured, or colorful AI-generated backgrounds
+- icon foreground is mostly one visual color
+- icon can be outline, filled, or a same-color fill+stroke hybrid
+
+Bad inputs:
+
+- a full screenshot where icon detection has not happened
+- an icon crop containing several unrelated objects
+- multicolor logos where separate colors matter semantically
+- extremely small, blurred, or heavily occluded icons
+- icon and background with almost identical color evidence
+
+Output is HTML containing SVG, not just SVG. This is deliberate because the
+original use case was a recursive website maker that wants to drop the returned
+HTML directly into a generated page.
+
+## How It Works
+
+Detailed algorithm notes are in [docs/ALGORITHM.md](docs/ALGORITHM.md).
+
+Short version:
+
+1. Normalize the crop to 128 x 128 RGB.
+2. Build many per-pixel evidence channels: RGB, HSV, Lab residuals, alpha-like
+   chromatic evidence, spectral high-high evidence, local contrast, gradients,
+   and coordinates.
+3. Run the stroke gated U-Net branch.
+4. Run the filled-silhouette gated U-Net branch.
+5. Clean each mask using median filtering, component filtering, small-hole
+   handling, and Potrace-specific preprocessing.
+6. Estimate the icon stroke/fill color from masked pixels.
+7. Trace each selected mask with Potrace.
+8. Render the SVG back over an inpainted background estimate and score the
+   reconstruction.
+9. Select filled when it is plausible, materially larger than the stroke mask,
+   and visually close or better; otherwise select stroke.
+10. Return `<span data-vectorizer="..."><svg>...</svg></span>`.
+
+## Papers And Methods Actually Used
+
+The final production path is not SAM, not random forest, and not SVM-first.
+Those were explored, but the shipped renderer is U-Net segmentation plus
+Potrace tracing.
+
+The papers and methods that directly shaped the final implementation:
+
+- Peter Selinger, **Potrace: a polygon-based tracing algorithm** (2003). Used
+  for mask-to-Bezier SVG tracing.
+- Ronneberger, Fischer, Brox, **U-Net: Convolutional Networks for Biomedical
+  Image Segmentation** (2015). Used as the architectural basis for pixel mask
+  segmentation: encoder/decoder, skip-localization idea, strong synthetic data
+  augmentation.
+- Salehi, Erdogmus, Gholipour, **Tversky loss function for image segmentation**
+  (2017). Used in the training loss family to handle foreground/background
+  imbalance.
+- Nobuyuki Otsu, **A Threshold Selection Method from Gray-Level Histograms**
+  (1979). Used in evidence-channel thresholding and earlier mask baselines;
+  retained as part of the evidence pipeline.
+- Classical mathematical morphology and connected component filtering. Used for
+  mask cleanup, tiny speck removal, and preserving intentional holes in filled
+  icons.
+
+Explored but not default:
+
+- SVM pixel masks and SVM endpoint connection repair.
+- Frangi vesselness and Fraz-style line/vessel evidence.
+- GrabCut-style foreground rescue.
+- SAM/SAM2 as an auxiliary signal.
+- Random forest / XGBoost were discussed but intentionally not used in the
+  shipped branch.
+
+More detail and source links are in [docs/RESEARCH.md](docs/RESEARCH.md).
+
+## Capabilities
+
+Works well for:
+
+- outline UI icons
+- filled map pins, tags, stars, hearts, bookmarks, shields, etc.
+- same-color hybrid icons with filled body plus stroke details
+- simple holes/cutouts such as map-pin centers or tag holes
+- noisy AI-generated backgrounds where the icon color is consistent
+- returning transparent SVG paths without copying the background
+
+Known weak points:
+
+- true multicolor icons are collapsed to one estimated foreground color
+- very thin strokes can still become slightly chunky because Potrace traces a
+  binary mask boundary
+- filled-only is not safe for all outline icons, so the auto selector keeps the
+  stroke branch
+- if an AI background contains icon-colored marks that touch or mimic the icon,
+  the mask can over-include them
+- this does not infer semantic SVG primitives like "circle", "line", or
+  "rounded rectangle"; it returns Potrace paths
+
+See [docs/CAPABILITIES.md](docs/CAPABILITIES.md) for detailed case behavior.
+
+## Repository Layout
+
+```text
+auto_icon_vectorizer/
+  vectorize.py                         # public API + CLI
+  regression.py                        # visual regression sheet generator
+  install_runtime.py                   # npm install helper
+  runtime/
+    trace_icon_component.py             # mask cleanup, Potrace call, SVG normalization
+    train_aux_fusion_icon_segmenter.py  # stroke gated U-Net architecture/features
+    train_filled_silhouette_segmenter.py# filled silhouette model/features
+    apply_svm_connections.py            # visual-diff utilities; SVM experiments are not default
+    generate_spectral_evidence_bank.py  # evidence-map helpers
+    nn-seg-results/
+      best-gated-unet.pt
+      best-filled-silhouette-unet.pt
+examples/
+  icon-vectorizer-regression.png
+  hybrid-fill-stroke-eval-after-auto-threshold.png
+  real-filled-vs-stroke-eval.png
+docs/
+  ALGORITHM.md
+  RESEARCH.md
+  CAPABILITIES.md
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

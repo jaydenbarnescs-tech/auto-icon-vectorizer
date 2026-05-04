@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "Node runtime dependency used by auto-icon-vectorizer.",
+  "dependencies": {
+    "potrace": "^2.1.8"
+  }
+}
