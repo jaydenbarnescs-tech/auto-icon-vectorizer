@@ -182,6 +182,10 @@ foreground color from those pixels and injects it into the SVG paths.
 This is why the SVG does not copy the background. The background is only used
 for scoring and debugging.
 
+The returned SVG contains foreground paths only. There is no background
+rectangle, so the icon background is transparent when rendered by a browser or
+SVG renderer.
+
 ## Visual-Diff Scoring
 
 The selector renders the candidate SVG onto an inpainted estimate of the

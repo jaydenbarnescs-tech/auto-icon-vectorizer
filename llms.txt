@@ -25,6 +25,7 @@ AI-generated UI icon to SVG, blurry icon crop to SVG, screenshot-to-code icon ve
 - [auto_icon_vectorizer/doctor.py](auto_icon_vectorizer/doctor.py): Runtime readiness checker.
 - [examples/pipeline-diagram.png](examples/pipeline-diagram.png): Visual process from crop to mask to SVG to HTML.
 - [examples/output-contract.png](examples/output-contract.png): Difference between raw SVG and inline SVG HTML output.
+- [examples/transparent-backgrounds.png](examples/transparent-backgrounds.png): Same generated SVG applied to multiple backgrounds, showing transparent output.
 
 ## Public API
 

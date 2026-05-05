@@ -114,6 +114,15 @@ Python API always returns both:
 
 ![output contract](examples/output-contract.png)
 
+## Transparent Background
+
+The returned SVG is transparent by design. It contains foreground path data only
+and does not include a background rectangle, so it can be placed over any page
+background, card, button, or CSS surface. Visibility still depends on the icon
+color having enough contrast with the target background.
+
+![transparent SVG backgrounds](examples/transparent-backgrounds.png)
+
 ## Results
 
 The examples below show the final output only: original crop on the left,

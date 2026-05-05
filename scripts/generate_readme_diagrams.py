@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from auto_icon_vectorizer import vectorize as adapter
 from auto_icon_vectorizer import vectorize_icon_crop
 
 EXAMPLES = ROOT / "examples"
@@ -28,6 +29,9 @@ def main() -> None:
     rendered = Image.open(str(prefix) + "-rendered.png").convert("RGB")
     write_pipeline_diagram(source, mask, rendered, result)
     write_output_contract_diagram(result)
+    trace = adapter._load_runtime()
+    rendered_rgba = trace.render_svg_transparent(result["svg"], SIZE)
+    write_transparent_background_diagram(rendered_rgba)
 
 
 def make_demo_crop() -> Image.Image:
@@ -147,6 +151,86 @@ def write_output_contract_diagram(result: dict) -> None:
     draw_arrow(draw, (710, 402), (790, 402))
     draw.text((678, 430), "same traced SVG", fill="#66706c", font=fonts["small"])
     image.save(EXAMPLES / "output-contract.png")
+
+
+def write_transparent_background_diagram(icon: Image.Image) -> None:
+    width, height = 1500, 700
+    image = Image.new("RGB", (width, height), "#f8f8f4")
+    draw = ImageDraw.Draw(image)
+    fonts = load_fonts()
+    draw.text((54, 44), "Transparent SVG Background", fill="#161a18", font=fonts["title"])
+    draw_wrapped_text(
+        draw,
+        (56, 92),
+        "The generated SVG contains only foreground paths. There is no background rectangle, so the same icon can be placed on light, dark, patterned, or gradient surfaces.",
+        112,
+        fonts["body"],
+        "#4b5350",
+        27,
+    )
+
+    panels = [
+        ("Light UI", light_background),
+        ("Dark UI", dark_background),
+        ("Patterned", patterned_background),
+        ("Gradient", gradient_background),
+    ]
+    x_positions = [70, 425, 780, 1135]
+    for title, background_fn in panels:
+        x = x_positions.pop(0)
+        draw.rounded_rectangle((x, 170, x + 290, 588), radius=12, fill="#ffffff", outline="#d9ded9", width=2)
+        draw.text((x + 28, 202), title, fill="#161a18", font=fonts["heading"])
+        bg = background_fn((210, 210))
+        composed = bg.convert("RGBA")
+        placed = icon.resize((150, 150), Image.Resampling.LANCZOS)
+        composed.alpha_composite(placed, ((210 - 150) // 2, (210 - 150) // 2))
+        image.paste(composed.convert("RGB"), (x + 40, 292))
+
+    draw.text(
+        (56, 636),
+        "Note: the background is transparent, but readability still depends on the icon color having enough contrast with the page background.",
+        fill="#3d4642",
+        font=fonts["small"],
+    )
+    image.save(EXAMPLES / "transparent-backgrounds.png")
+
+
+def light_background(size: tuple[int, int]) -> Image.Image:
+    image = Image.new("RGB", size, "#f5f2ea")
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((18, 18, size[0] - 18, size[1] - 18), radius=18, fill="#ffffff", outline="#ddd8ca", width=2)
+    return image
+
+
+def dark_background(size: tuple[int, int]) -> Image.Image:
+    image = Image.new("RGB", size, "#111412")
+    draw = ImageDraw.Draw(image)
+    for y in range(0, size[1], 18):
+        draw.line([(0, y), (size[0], y + 28)], fill="#202720", width=7)
+    return image
+
+
+def patterned_background(size: tuple[int, int]) -> Image.Image:
+    image = Image.new("RGB", size, "#2d3140")
+    draw = ImageDraw.Draw(image)
+    for x in range(-size[0], size[0] * 2, 28):
+        draw.line([(x, 0), (x + size[0], size[1])], fill="#3c4256", width=10)
+    for x in range(18, size[0], 44):
+        for y in range(22, size[1], 44):
+            draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill="#546078")
+    return image
+
+
+def gradient_background(size: tuple[int, int]) -> Image.Image:
+    image = Image.new("RGB", size)
+    draw = ImageDraw.Draw(image)
+    for y in range(size[1]):
+        t = y / max(1, size[1] - 1)
+        r = round(28 * (1 - t) + 82 * t)
+        g = round(87 * (1 - t) + 44 * t)
+        b = round(101 * (1 - t) + 96 * t)
+        draw.line([(0, y), (size[0], y)], fill=(r, g, b))
+    return image
 
 
 def draw_card(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], title: str, body: str, fonts: dict) -> None:
