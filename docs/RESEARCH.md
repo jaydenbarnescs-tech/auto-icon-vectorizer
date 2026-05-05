@@ -97,8 +97,31 @@ What was missing for this project:
   stroke weight, softness, color, or composition.
 - A second image-generation pass costs time/tokens, is less reproducible, and
   still produces a raster image unless another vectorization step follows.
-- Manual design-tool tracing is not suitable inside an automated UI generation
-  pipeline.
+- Manual design-tool tracing is not a deterministic no-human interface for an
+  automated UI generation pipeline.
+
+Manual tracing tools are not the problem when a human designer is in the loop.
+The problem is the interface. Interactive tracing assumes someone can inspect
+the crop, choose a threshold or preset, decide whether background fragments were
+copied, reconnect strokes, smooth bad corners, and export the final result. An
+automated website generator needs the opposite: a stable crop-in, SVG/HTML-out
+function that can run repeatedly without visual inspection.
+
+On blurry AI-generated icon crops, the failure mode is usually upstream of curve
+fitting:
+
+- direct thresholding can merge icon pixels with similarly bright or dark
+  background regions
+- color tracing can preserve generated background layers that should be
+  discarded
+- edge tracing finds background edges as confidently as icon edges
+- JPEG/PNG blur and antialiasing turn one stroke into a fuzzy band that needs
+  foreground/background reasoning before tracing
+
+The README visual sheet
+[`examples/tracing-alone-failure-modes.png`](../examples/tracing-alone-failure-modes.png)
+shows these failure modes on generated blurry icon crops. This is why this
+project uses mask recovery first and Potrace second.
 
 If a clean source icon already exists and style matching does not matter, that
 source icon is better. This project is for the case where the generated icon

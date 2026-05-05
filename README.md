@@ -61,6 +61,33 @@ and still leaves a raster asset. Auto Icon Vectorizer fills this gap by treating
 foreground mask recovery as the main problem, then using Potrace only after the
 icon has been separated from the background.
 
+## Why Not Just Use Manual Tracing?
+
+Manual design-tool tracing can work for a single icon if a person is willing to
+tune thresholds, remove background fragments, reconnect broken strokes, smooth
+awkward corners, and export the final SVG. That is a reasonable design workflow,
+but it is not a suitable component inside an automated UI generation pipeline.
+
+In an automated website-generation loop, the program needs a repeatable function:
+
+```text
+cropped blurry icon -> clean transparent SVG/HTML
+```
+
+It cannot pause for a designer to inspect each crop, choose an Image Trace
+preset, erase copied background texture, and re-export every icon. The visual
+problem is also different from normal tracing: the foreground icon is small and
+blurred, while the AI-generated background may contain stripes, dots, gradients,
+or similarly colored decoration. A tracer sees all of those pixels unless a
+separate step first decides which pixels belong to the icon.
+
+The examples below compare simple tracer-first approaches with this project's
+mask-recovery-first approach. Direct thresholding can lose weak strokes or copy
+background blobs. Edge tracing finds many edges, but background edges are not
+icon foreground. The useful tracer input is the cleaned foreground mask.
+
+![tracing alone failure modes](examples/tracing-alone-failure-modes.png)
+
 The detailed landscape review is in [docs/RESEARCH.md](docs/RESEARCH.md). It
 covers classic tracers, color vectorizers, design tools, recent image-to-SVG
 research, and why this project focuses on AI-generated UI icon crops.

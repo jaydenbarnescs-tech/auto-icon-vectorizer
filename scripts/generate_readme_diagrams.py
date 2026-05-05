@@ -4,6 +4,8 @@ import textwrap
 import sys
 from pathlib import Path
 
+import cv2
+import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 
@@ -34,6 +36,7 @@ def main() -> None:
     write_transparent_background_diagram(rendered_rgba)
     write_ai_website_workflow_diagram(crop, rendered_rgba, result)
     write_ai_website_integration_diagram(crop, rendered_rgba)
+    write_tracing_limitations_diagram(trace)
 
 
 def make_demo_crop() -> Image.Image:
@@ -48,6 +51,53 @@ def make_demo_crop() -> Image.Image:
     draw.line([(96, 100), (83, 116)], fill=color, width=7)
     draw.line([(69, 46), (155, 126)], fill=color, width=8)
     return image
+
+
+def make_low_contrast_check_crop() -> Image.Image:
+    image = Image.new("RGB", (220, 160), (72, 78, 82))
+    draw = ImageDraw.Draw(image)
+    for y in range(160):
+        t = y / 159
+        color = (
+            round(52 * (1 - t) + 88 * t),
+            round(67 * (1 - t) + 82 * t),
+            round(74 * (1 - t) + 70 * t),
+        )
+        draw.line([(0, y), (220, y)], fill=color)
+    for x in range(-120, 260, 22):
+        draw.line([(x, 0), (x + 170, 160)], fill=(88, 72, 96), width=6)
+    for _x, _y, radius, color in [
+        (42, 34, 17, (108, 91, 118)),
+        (176, 112, 23, (92, 106, 98)),
+        (132, 44, 13, (115, 96, 68)),
+    ]:
+        draw.ellipse((_x - radius, _y - radius, _x + radius, _y + radius), fill=color)
+    icon = (203, 183, 135)
+    draw.ellipse([54, 22, 166, 134], outline=icon, width=6)
+    draw.line([(82, 80), (101, 98), (140, 58)], fill=icon, width=9, joint="curve")
+    return image.filter(ImageFilter.GaussianBlur(0.35))
+
+
+def make_colored_pin_crop() -> Image.Image:
+    size = SIZE * SCALE
+    image = Image.new("RGB", (size, size), (75, 82, 64))
+    draw = ImageDraw.Draw(image)
+    s = SCALE
+    icon = (66, 125, 89)
+    draw.polygon([(20*s, 55*s), (61*s, 24*s), (106*s, 34*s), (95*s, 78*s), (55*s, 108*s)], fill=icon)
+    draw.ellipse([75*s, 42*s, 88*s, 55*s], fill=(75, 82, 64))
+    draw.arc([76*s, 12*s, 119*s, 56*s], 205, 34, fill=icon, width=6*s)
+    draw.line([(107*s, 27*s), (116*s, 17*s)], fill=icon, width=5*s)
+    for x, y, r, color in [
+        (18, 29, 7, (155, 119, 33)),
+        (106, 12, 5, (20, 117, 142)),
+        (14, 89, 8, (140, 70, 155)),
+        (111, 95, 3, (191, 68, 52)),
+        (34, 113, 5, (162, 130, 40)),
+    ]:
+        draw.ellipse([(x-r)*s, (y-r)*s, (x+r)*s, (y+r)*s], fill=color)
+    image = image.filter(ImageFilter.GaussianBlur(0.35))
+    return image.resize((220, 160), Image.Resampling.LANCZOS)
 
 
 def write_pipeline_diagram(source: Image.Image, mask: Image.Image, rendered: Image.Image, result: dict) -> None:
@@ -201,6 +251,124 @@ def write_ai_website_integration_diagram(crop: Image.Image, icon: Image.Image) -
         fonts["mono"],
     )
     image.save(EXAMPLES / "ai-website-html-integration.png")
+
+
+def write_tracing_limitations_diagram(trace) -> None:
+    cases = [
+        ("Patterned outline crop", make_demo_crop()),
+        ("Low-contrast line crop", make_low_contrast_check_crop()),
+        ("Colorful hybrid crop", make_colored_pin_crop()),
+    ]
+    width, height = 1740, 1140
+    image = Image.new("RGB", (width, height), "#f8f7f3")
+    draw = ImageDraw.Draw(image)
+    fonts = load_fonts()
+    draw.text((54, 42), "Why Tracing Alone Fails On Blurry Generated Icons", fill="#161a18", font=fonts["title"])
+    draw_wrapped_text(
+        draw,
+        (56, 92),
+        "Classic vectorizers are strong after the foreground mask is clean. On tiny AI-generated crops, direct thresholding or edge tracing often copies background texture, loses weak strokes, or turns blur into chunky shapes.",
+        130,
+        fonts["body"],
+        "#4b5350",
+        27,
+    )
+    columns = [
+        ("Input crop", "Blurry raster icon with generated background"),
+        ("Direct threshold trace", "Global black/white threshold before Potrace"),
+        ("Edge-map trace", "Edges are not the same thing as icon foreground"),
+        ("Mask recovery + Potrace", "This project separates the icon first"),
+    ]
+    x_positions = [70, 470, 870, 1270]
+    for x, (title, subtitle) in zip(x_positions, columns):
+        draw.text((x, 165), title, fill="#161a18", font=fonts["heading"])
+        draw_wrapped_text(draw, (x, 198), subtitle, 31, fonts["small"], "#56605c", 24)
+
+    row_y = [305, 585, 865]
+    for (case_name, crop), y in zip(cases, row_y):
+        draw.text((70, y - 38), case_name, fill="#3d4642", font=fonts["small"])
+        panels = [
+            crop.resize((190, 138), Image.Resampling.LANCZOS),
+            trace_blurry_crop_direct(trace, crop, "threshold"),
+            trace_blurry_crop_direct(trace, crop, "edges"),
+            trace_blurry_crop_auto(trace, crop),
+        ]
+        for x, panel in zip(x_positions, panels):
+            draw.rounded_rectangle((x - 10, y - 10, x + 250, y + 206), radius=12, fill="#ffffff", outline="#d5dcd5", width=2)
+            if panel.mode == "RGBA":
+                checker = checkerboard((220, 176))
+                placed = panel.resize((150, 150), Image.Resampling.LANCZOS)
+                checker.alpha_composite(placed, (35, 13))
+                image.paste(checker.convert("RGB"), (x + 10, y + 16))
+            else:
+                framed = panel.resize((220, 176), Image.Resampling.LANCZOS)
+                image.paste(framed, (x + 10, y + 16))
+
+    draw_wrapped_text(
+        draw,
+        (56, 1090),
+        "Manual design-tool tracing can still be useful for one-off cleanup. The problem here is automation: a website generator cannot pause for a human to tune thresholds, erase background fragments, and re-export every icon.",
+        150,
+        fonts["small"],
+        "#3d4642",
+        24,
+    )
+    image.save(EXAMPLES / "tracing-alone-failure-modes.png")
+
+
+def trace_blurry_crop_auto(trace, crop: Image.Image) -> Image.Image:
+    try:
+        result = vectorize_icon_crop(crop)
+        return trace.render_svg_transparent(result["svg"], SIZE)
+    except Exception:
+        return failure_panel_rgba("trace failed")
+
+
+def trace_blurry_crop_direct(trace, crop: Image.Image, mode: str) -> Image.Image:
+    try:
+        source = trace.canonical_image(crop.convert("RGB"), SIZE)
+        rgb = np.asarray(source.convert("RGB"), dtype=np.uint8)
+        gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+        if mode == "threshold":
+            bright = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1] > 0
+            dark = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1] > 0
+            mask = bright if border_touch_ratio(bright) <= border_touch_ratio(dark) else dark
+            mask = cv2.medianBlur(mask.astype(np.uint8) * 255, 3) > 0
+        elif mode == "edges":
+            edges = cv2.Canny(gray, 35, 100)
+            kernel = np.ones((2, 2), np.uint8)
+            mask = cv2.dilate(edges, kernel, iterations=1) > 0
+        else:
+            raise ValueError(mode)
+        mask = trace.preprocess_mask_for_potrace(mask.astype(np.uint8))
+        if int(mask.sum()) <= 0:
+            return failure_panel_rgba("empty mask")
+        options = trace.potrace_options(float(trace.estimate_mask_thickness(mask)), "default")
+        svg = trace.normalize_svg(
+            trace.trace_with_potrace(trace.mask_to_trace_bitmap(mask), "#111827", options),
+            "#111827",
+            SIZE,
+        )
+        return trace.render_svg_transparent(svg, SIZE)
+    except Exception:
+        return failure_panel_rgba("trace failed")
+
+
+def border_touch_ratio(mask: np.ndarray) -> float:
+    border = np.zeros(mask.shape, dtype=bool)
+    border[:6, :] = True
+    border[-6:, :] = True
+    border[:, :6] = True
+    border[:, -6:] = True
+    return float((mask & border).sum()) / max(1.0, float(mask.sum()))
+
+
+def failure_panel_rgba(text: str) -> Image.Image:
+    image = Image.new("RGBA", (SIZE, SIZE), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(image)
+    font = load_fonts()["small"]
+    draw.text((18, 54), text, fill=(116, 41, 41, 255), font=font)
+    return image
 
 
 def write_output_contract_diagram(result: dict) -> None:
