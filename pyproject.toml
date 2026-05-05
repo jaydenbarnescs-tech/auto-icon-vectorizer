@@ -45,6 +45,7 @@ Repository = "https://github.com/jaydenbarnescs-tech/auto-icon-vectorizer"
 
 [project.scripts]
 auto-icon-vectorizer = "auto_icon_vectorizer.vectorize:main"
+auto-icon-vectorizer-doctor = "auto_icon_vectorizer.doctor:main"
 auto-icon-vectorizer-regression = "auto_icon_vectorizer.regression:main"
 auto-icon-vectorizer-install-runtime = "auto_icon_vectorizer.install_runtime:main"
 

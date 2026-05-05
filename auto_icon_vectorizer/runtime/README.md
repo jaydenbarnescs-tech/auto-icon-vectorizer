@@ -18,4 +18,10 @@ Files:
 - `nn-seg-results/best-filled-silhouette-unet.pt`: filled model checkpoint.
 - `package.json` / `package-lock.json`: Node Potrace dependency.
 
-The large training feature cache is intentionally excluded from the public repo.
+Not included:
+
+- `node_modules/`: generated with `python3 -m auto_icon_vectorizer.install_runtime`.
+- `nn-seg-results/*.npz`: generated feature caches used only for retraining.
+- `truth-stress-eval/` and `nn-training-corpus-v2/`: local training corpora.
+
+See `docs/RUNTIME_ASSETS.md` for setup, doctor checks, and retraining commands.

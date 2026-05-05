@@ -6,6 +6,13 @@ dist/
 build/
 *.egg-info/
 auto_icon_vectorizer/runtime/node_modules/
+auto_icon_vectorizer/runtime/nn-seg-results/*.npz
+auto_icon_vectorizer/runtime/nn-seg-results/*diagnostics*.png
+auto_icon_vectorizer/runtime/nn-seg-results/*summary*.tsv
+auto_icon_vectorizer/runtime/nn-seg-results/training-history.json
+auto_icon_vectorizer/runtime/truth-stress-eval/
+auto_icon_vectorizer/runtime/nn-training-corpus-v2/
+auto_icon_vectorizer/runtime/spectral-evidence-bank-results/
 examples/regression-output/
 examples/*-source.png
 examples/*-mask.png

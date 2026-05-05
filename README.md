@@ -144,6 +144,7 @@ Requirements:
 
 - Python 3.9+
 - Node.js + npm
+- native Cairo library for SVG rendering through CairoSVG
 - Python packages listed in `pyproject.toml`
 - Node package `potrace`, installed into `auto_icon_vectorizer/runtime`
 
@@ -154,11 +155,16 @@ git clone https://github.com/jaydenbarnescs-tech/auto-icon-vectorizer.git
 cd auto-icon-vectorizer
 python3 -m pip install -e .
 python3 -m auto_icon_vectorizer.install_runtime
+python3 -m auto_icon_vectorizer.doctor
 ```
 
 The Node install step is required because the final bitmap-to-SVG tracing call
 uses the npm `potrace` package. The neural network checkpoints are included in
-the repo; the large training feature cache is intentionally not included.
+the repo; the large training feature caches and original local training corpora
+are intentionally not included.
+
+For exact details on included files, omitted generated artifacts, and retraining
+from a public synthetic corpus, see [docs/RUNTIME_ASSETS.md](docs/RUNTIME_ASSETS.md).
 
 ## CLI Usage
 
@@ -355,6 +361,7 @@ See [docs/CAPABILITIES.md](docs/CAPABILITIES.md) for detailed case behavior.
 ```text
 auto_icon_vectorizer/
   vectorize.py                         # public API + CLI
+  doctor.py                            # runtime readiness checker
   regression.py                        # visual regression sheet generator
   install_runtime.py                   # npm install helper
   runtime/
@@ -372,6 +379,7 @@ examples/
   real-filled-vs-stroke-eval.png
 docs/
   ALGORITHM.md
+  RUNTIME_ASSETS.md
   RESEARCH.md
   CAPABILITIES.md
 ```

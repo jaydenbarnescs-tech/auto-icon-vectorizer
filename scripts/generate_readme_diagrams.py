@@ -20,6 +20,7 @@ SCALE = 4
 def main() -> None:
     EXAMPLES.mkdir(parents=True, exist_ok=True)
     crop = make_demo_crop()
+    crop.save(EXAMPLES / "sample-ai-icon-crop.png")
     prefix = EXAMPLES / "diagram-icon"
     result = vectorize_icon_crop(crop, output_prefix=prefix, write_html_artifact=True)
     source = Image.open(str(prefix) + "-source.png").convert("RGB")

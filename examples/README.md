@@ -2,6 +2,14 @@
 
 These sheets are included so behavior can be inspected visually.
 
+## `sample-ai-icon-crop.png`
+
+Small synthetic input crop that can be used for a fresh-clone smoke test:
+
+```bash
+auto-icon-vectorizer examples/sample-ai-icon-crop.png --out-prefix out/sample-icon
+```
+
 ## `results-overview.png`
 
 Main README image. It shows only the important user-facing result:

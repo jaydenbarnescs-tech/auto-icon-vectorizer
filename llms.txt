@@ -20,7 +20,9 @@ AI-generated UI icon to SVG, blurry icon crop to SVG, screenshot-to-code icon ve
 - [docs/ALGORITHM.md](docs/ALGORITHM.md): Default pipeline, segmentation branches, feature channels, mask cleanup, Potrace tracing.
 - [docs/CAPABILITIES.md](docs/CAPABILITIES.md): What works well, what does not, and known failure modes.
 - [docs/RESEARCH.md](docs/RESEARCH.md): Research and method context.
+- [docs/RUNTIME_ASSETS.md](docs/RUNTIME_ASSETS.md): Included model checkpoints, omitted generated caches, runtime setup, doctor checks, and retraining commands.
 - [auto_icon_vectorizer/vectorize.py](auto_icon_vectorizer/vectorize.py): Public Python API and CLI.
+- [auto_icon_vectorizer/doctor.py](auto_icon_vectorizer/doctor.py): Runtime readiness checker.
 - [examples/pipeline-diagram.png](examples/pipeline-diagram.png): Visual process from crop to mask to SVG to HTML.
 - [examples/output-contract.png](examples/output-contract.png): Difference between raw SVG and inline SVG HTML output.
 
@@ -43,3 +45,19 @@ auto-icon-vectorizer icon-crop.png --out-prefix out/icon --json out/icon.json
 ```
 
 The CLI prints SVG by default. Use `--stdout html` for the HTML wrapper or `--stdout json` for diagnostics.
+
+## Fresh Clone Setup
+
+```bash
+python3 -m pip install -e .
+python3 -m auto_icon_vectorizer.install_runtime
+python3 -m auto_icon_vectorizer.doctor
+```
+
+The included `.pt` model checkpoints are enough for inference. The omitted
+`.npz` feature caches and `truth-stress-eval/` training corpus are only needed
+for retraining. Generate a public stroke-training corpus with:
+
+```bash
+python3 scripts/generate_public_training_corpus.py --count 240
+```
