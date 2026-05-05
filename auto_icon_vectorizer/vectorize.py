@@ -1,7 +1,7 @@
 """Auto stroke/filled icon vectorizer.
 
-Pass an already-detected raster icon crop to this module. It returns HTML
-containing an inline SVG, the raw SVG, simple primitive metadata, and
+Pass an already-cropped raster icon image to this module. It returns HTML
+containing an inline SVG, the raw SVG, simple path metadata, and
 diagnostics describing the selected mask branch.
 """
 
@@ -34,6 +34,7 @@ FILLED_MIN_AREA_RATIO = 1.25
 def vectorize_icon_crop(
     crop: Image.Image,
     *,
+    source_id: str | None = None,
     node_id: str | None = None,
     class_name: str = "vector-icon",
     title: str | None = None,
@@ -50,19 +51,21 @@ def vectorize_icon_crop(
     mask = selected["mask"]
     svg = selected["svg"]
     svg = _prepare_svg(svg, title=title, aria_label=aria_label)
-    html = _wrap_svg(svg, class_name=class_name, node_id=node_id, renderer=selected["renderer"])
+    html = _wrap_svg(svg, class_name=class_name, source_id=source_id or node_id, renderer=selected["renderer"])
     artifacts = _write_artifacts(trace, source, mask, svg, html, Path(output_prefix)) if output_prefix else {}
+    paths = [
+        {
+            "type": "potrace_path",
+            "pathCount": int(svg.count("<path")),
+            "renderer": selected["renderer"],
+        }
+    ]
 
     return {
         "html": html,
         "svg": svg,
-        "primitives": [
-            {
-                "type": "potrace_path",
-                "pathCount": int(svg.count("<path")),
-                "renderer": selected["renderer"],
-            }
-        ],
+        "paths": paths,
+        "primitives": paths,
         "diagnostics": {
             "pipelineRenderer": AUTO_RENDERER if mask_mode == "auto" else selected["renderer"],
             "renderer": selected["renderer"],
@@ -297,14 +300,14 @@ def _filled_silhouette_mask(source: Image.Image) -> Any | None:
         return None
 
 
-def _wrap_svg(svg: str, *, class_name: str, node_id: str | None, renderer: str) -> str:
+def _wrap_svg(svg: str, *, class_name: str, source_id: str | None, renderer: str) -> str:
     classes = _normalize_classes(class_name)
     attrs = [
         f'class="{html_lib.escape(classes, quote=True)}"',
         f'data-vectorizer="{html_lib.escape(renderer, quote=True)}"',
     ]
-    if node_id:
-        attrs.append(f'data-source-node-id="{html_lib.escape(node_id, quote=True)}"')
+    if source_id:
+        attrs.append(f'data-source-id="{html_lib.escape(source_id, quote=True)}"')
     return f"<span {' '.join(attrs)}>{svg}</span>"
 
 
@@ -343,7 +346,8 @@ def main() -> None:
     parser.add_argument("image", type=Path)
     parser.add_argument("--out-prefix", type=Path)
     parser.add_argument("--json", type=Path)
-    parser.add_argument("--node-id", default=None)
+    parser.add_argument("--source-id", default=None)
+    parser.add_argument("--node-id", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--class-name", default="vector-icon")
     parser.add_argument("--title", default=None)
     parser.add_argument("--aria-label", default=None)
@@ -353,7 +357,7 @@ def main() -> None:
     crop = Image.open(args.image).convert("RGB")
     result = vectorize_icon_crop(
         crop,
-        node_id=args.node_id,
+        source_id=args.source_id or args.node_id,
         class_name=args.class_name,
         title=args.title,
         aria_label=args.aria_label,

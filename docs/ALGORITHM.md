@@ -14,17 +14,18 @@ Input:
 - one cropped raster icon image
 - accepted as a `PIL.Image.Image`
 - the crop is canonicalized to 128 x 128 pixels internally
-- no object detection is performed here
+- it does not search a full screenshot for icons
 
 Output:
 
 - `html`: a `<span>` containing an inline `<svg>`
 - `svg`: raw SVG only
-- `primitives`: simple metadata, currently one or more Potrace paths
+- `paths`: simple metadata about the generated Potrace paths
 - `diagnostics`: selected branch, mask stats, stroke color, Potrace options,
   visual-diff scores, and optional artifact paths
 
-The returned HTML is the primary integration point for recursive UI builders.
+The returned HTML is the easiest integration point for web apps, site builders,
+and design tools.
 
 ## Branch 1: Stroke / Outline Segmentation
 

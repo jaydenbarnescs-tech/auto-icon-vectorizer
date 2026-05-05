@@ -2,11 +2,10 @@
 
 Convert a cropped raster UI icon into clean inline SVG HTML.
 
-This repository packages the icon vectorization component that was built for a
-recursive UI skeleton extractor. The component assumes icon detection has
-already happened: it receives a small image crop containing one icon, removes
-the background, traces the foreground mask with Potrace, and returns HTML with
-an inline SVG.
+This tool converts a small raster icon crop into clean inline SVG HTML.
+It assumes you already have the icon crop: it removes the background, traces
+the foreground mask with Potrace, and returns HTML you can place directly in a
+web page.
 
 The production renderer is:
 
@@ -81,7 +80,7 @@ the repo; the large training feature cache is intentionally not included.
 auto-icon-vectorizer path/to/icon-crop.png \
   --out-prefix examples/my-icon \
   --json examples/my-icon.json \
-  --node-id my_icon \
+  --source-id my_icon \
   --class-name vector-icon
 ```
 
@@ -110,7 +109,7 @@ from auto_icon_vectorizer import vectorize_icon_crop
 crop = Image.open("icon-crop.png").convert("RGB")
 result = vectorize_icon_crop(
     crop,
-    node_id="feature_icon_001",
+    source_id="feature_icon_001",
     class_name="vector-icon feature-icon",
     output_prefix=Path("out/feature_icon_001"),
     mask_mode="auto",
@@ -121,13 +120,13 @@ svg = result["svg"]    # raw SVG only
 diagnostics = result["diagnostics"]
 ```
 
-The component contract is intentionally UI-builder friendly:
+The return value is designed for apps that generate or edit web pages:
 
 ```python
 {
     "html": "...inline SVG HTML...",
     "svg": "...raw SVG...",
-    "primitives": [
+    "paths": [
         {"type": "potrace_path", "pathCount": 1, "renderer": "..."}
     ],
     "diagnostics": {
@@ -156,15 +155,14 @@ Good inputs:
 
 Bad inputs:
 
-- a full screenshot where icon detection has not happened
+- a full screenshot instead of one cropped icon
 - an icon crop containing several unrelated objects
-- multicolor logos where separate colors matter semantically
+- multicolor logos where each color needs to stay separate
 - extremely small, blurred, or heavily occluded icons
 - icon and background with almost identical color evidence
 
-Output is HTML containing SVG, not just SVG. This is deliberate because the
-original use case was a recursive website maker that wants to drop the returned
-HTML directly into a generated page.
+Output is HTML containing SVG, not just SVG. This makes it easy to place the
+result directly into a generated page while still keeping the raw SVG available.
 
 ## How It Works
 
@@ -243,7 +241,7 @@ Known weak points:
   stroke branch
 - if an AI background contains icon-colored marks that touch or mimic the icon,
   the mask can over-include them
-- this does not infer semantic SVG primitives like "circle", "line", or
+- this does not infer basic SVG shapes like "circle", "line", or
   "rounded rectangle"; it returns Potrace paths
 
 See [docs/CAPABILITIES.md](docs/CAPABILITIES.md) for detailed case behavior.

@@ -1,7 +1,7 @@
 # Capabilities And Failure Modes
 
-This page is written for someone deciding whether to use this component in a
-recursive website generator.
+This page is written for someone deciding whether to use this tool in an app,
+website, or design tool.
 
 ## What It Handles Well
 
@@ -84,18 +84,18 @@ Useful evidence:
 
 ### It Does Not Detect Icons In A Full Screenshot
 
-This is not an object detector. It expects a crop. A recursive UI extractor
-should detect candidate icon boxes first, then pass each crop here.
+This tool does not search a full screenshot for icons. It expects an image
+crop that already contains one icon.
 
-### It Does Not Produce Semantic SVG Primitives
+### It Does Not Rebuild Icons As Editable Shapes
 
 Output is Potrace paths, not:
 
 - `<circle>`
 - `<line>`
 - `<rect>`
-- named icon primitives
-- editable vector skeletons
+- named icon parts
+- designer-editable source geometry
 
 That is acceptable for visual reconstruction, but not ideal if you need a
 designer-editable icon source.
@@ -103,7 +103,7 @@ designer-editable icon source.
 ### It Does Not Preserve Multiple Foreground Colors
 
 The current SVG output uses one estimated foreground color. True multicolor
-logos or icons with semantic color regions are out of scope.
+logos or icons where each color must stay separate are out of scope.
 
 ### It Does Not Reconstruct Missing Information
 
@@ -115,7 +115,7 @@ the pixels.
 
 Potrace traces the mask boundary. If the mask is chunky, the SVG can still look
 chunky. The current cleanup reduces this but does not replace Potrace with a
-centerline/stroke primitive renderer.
+centerline/stroke renderer.
 
 ## Known Failure Modes
 
@@ -127,7 +127,7 @@ the icon, the mask can include them.
 Mitigation:
 
 - tighter icon crop
-- stronger detector crop padding control
+- better crop boundaries
 - train more examples of that background family
 
 ### Very Thin Strokes
@@ -162,15 +162,14 @@ Mitigation:
 
 ## Recommended Integration Policy
 
-Use this component like this:
+Use this tool like this:
 
 ```text
-detector finds icon bbox
-    -> crop bbox with small padding
-    -> vectorize_icon_crop(crop, mask_mode="auto")
+app finds or receives an icon crop
+    -> pass the crop to vectorize_icon_crop(crop, mask_mode="auto")
     -> use result["html"] in generated page
     -> keep original crop as fallback asset
-    -> store diagnostics with the recursive node
+    -> store diagnostics next to your icon record
 ```
 
 Do not:

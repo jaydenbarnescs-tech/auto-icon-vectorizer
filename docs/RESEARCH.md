@@ -28,7 +28,7 @@ Why it stayed:
 
 Important limitation:
 
-- Potrace traces boundaries. It does not infer semantic primitives like
+- Potrace traces boundaries. It does not infer basic SVG shapes like
   `circle`, `line`, or `rect`, and it does not know what a "check mark" or
   "map pin" is.
 

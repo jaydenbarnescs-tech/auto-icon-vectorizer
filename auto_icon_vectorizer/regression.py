@@ -1,7 +1,7 @@
 """Regression sheet for the production icon vectorizer selector.
 
 This is intentionally CLI-only. It exercises the same adapter used by the
-recursive extractor and writes a visual comparison sheet plus JSON metrics.
+package and writes a visual comparison sheet plus JSON metrics.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ def main() -> None:
         stem = args.output_dir / case["id"]
         result = adapter.vectorize_icon_crop(
             source,
-            node_id=case["id"],
+            source_id=case["id"],
             class_name="regression-icon",
             output_prefix=stem,
             mask_mode="auto",
