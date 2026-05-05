@@ -4,7 +4,169 @@ This document separates the methods that actually ended up in the default
 renderer from methods that were explored and rejected or left as non-default
 experiments.
 
-## Production Methods
+## Existing Landscape And The Gap
+
+As of May 2026, there are strong tools and papers for raster-to-vector
+conversion, but they mostly optimize for different inputs than this project.
+The gap this project fills is: **recover a style-matched, blurry, mostly
+single-color UI icon from an AI-generated screenshot/mockup and return a
+transparent SVG/HTML asset that can be reused on a web page.**
+
+That is not the same as tracing a clean logo, vectorizing a color photograph,
+extracting all objects from a scene, or generating semantic SVG code from
+scratch.
+
+### Classic Binary Tracing
+
+Representative tools:
+
+- [Potrace](https://potrace.sourceforge.net/)
+- Potrace integrations in tools such as Inkscape
+- TypeScript/JS ports and wrappers around Potrace
+
+What already existed:
+
+- Fast, deterministic tracing from a black/white bitmap into smooth paths.
+- Good curve fitting once the input mask is already clean.
+- Mature SVG/PDF/EPS-style output paths.
+
+What was missing for this project:
+
+- Potrace does not solve foreground extraction from a messy AI-generated crop.
+- If the bitmap contains background texture, Potrace faithfully traces that
+  texture too.
+- The hard part for our target input is not curve fitting; it is deciding which
+  pixels are the icon.
+
+This project therefore uses Potrace as the final renderer, not as the full
+solution.
+
+### Classic And Open-Source Raster Vectorizers
+
+Representative tools:
+
+- [AutoTrace](https://github.com/autotrace/autotrace)
+- [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs)
+- [image-tracer-ts](https://github.com/mringler/image-tracer-ts)
+- [VTracer](https://github.com/visioncortex/vtracer)
+
+What already existed:
+
+- AutoTrace covers classic bitmap-to-vector conversion, including outline and
+  centerline tracing, color reduction, despeckling, and multiple output formats.
+- ImageTracerJS and related browser/Node packages provide configurable
+  image-to-SVG tracing for simple images and palette-style conversion.
+- VTracer is a strong modern color raster-to-vector converter. Its README
+  describes it as a tool for JPG/PNG to SVG and specifically notes that it can
+  handle colored high-resolution scans where Potrace expects binarized input.
+
+What was missing for this project:
+
+- These tools are general vectorizers. They do not know that "the icon" is the
+  foreground object to preserve and "the generated UI background" is disposable.
+- Color-layer vectorizers can preserve or trace background layers when the
+  desired output is only a transparent icon.
+- For tiny blurry UI icon crops, over-vectorizing background detail is often
+  worse than losing it.
+- They generally expose SVG output, not an icon-specific web integration
+  contract with `svg`, `html`, diagnostics, source ids, mask previews, and
+  branch-selection metadata.
+
+The gap is not "convert image to SVG". The gap is "convert the intended icon
+inside this small AI-generated crop to SVG without copying the generated
+background".
+
+### Design Tools And Stock Icon Replacement
+
+Representative options:
+
+- Use an icon library such as Material Icons, Lucide, Font Awesome, Heroicons,
+  or similar.
+- Use design software image tracing.
+- Ask an image model to redraw or enhance the icon.
+
+What already existed:
+
+- Icon libraries give clean, hand-authored SVG.
+- Design tools can trace images interactively.
+- Image models can create new icon-like raster assets.
+
+What was missing for this project:
+
+- A stock icon may not match the AI-generated UI's exact visual language,
+  stroke weight, softness, color, or composition.
+- A second image-generation pass costs time/tokens, is less reproducible, and
+  still produces a raster image unless another vectorization step follows.
+- Manual design-tool tracing is not suitable inside an automated UI generation
+  pipeline.
+
+If a clean source icon already exists and style matching does not matter, that
+source icon is better. This project is for the case where the generated icon
+itself is the asset worth preserving.
+
+### Recent Image-to-SVG Research
+
+Representative directions:
+
+- [SAMVG](https://arxiv.org/abs/2311.05276): segmentation-assisted multi-stage
+  image vectorization using Segment Anything.
+- [StarVector](https://arxiv.org/abs/2312.11556): SVG code generation from
+  image/text using a vision-language model.
+- [AmodalSVG](https://arxiv.org/abs/2604.10940): semantic layer peeling and
+  amodal vectorization for editable object layers.
+- [LIVE](https://arxiv.org/abs/2206.04655): layer-wise image vectorization.
+- Broader survey work such as [Image Vectorization: a Review](https://arxiv.org/abs/2306.06441).
+
+What already existed:
+
+- Research systems increasingly address semantic layers, primitive generation,
+  differentiable rendering, segmentation-assisted vectorization, and direct SVG
+  code generation.
+- These are closer to "understand the image and produce structured vector
+  graphics".
+
+What was missing for this project:
+
+- The target runtime here is small, local, inspectable, and task-specific.
+- The input is not a general scene or artwork; it is one cropped UI icon.
+- The output does not need semantic SVG primitives. It needs a reliable,
+  transparent, scalable web asset.
+- Foundation segmentation or SVG-code generation models add runtime complexity
+  that is hard to justify for small icon crops.
+
+The project therefore uses a compact learned segmentation model plus classical
+tracing instead of a large general-purpose image-to-SVG model.
+
+### What This Project Adds
+
+This project's contribution is the combination of these choices for a specific
+under-covered case:
+
+- target input: blurry, noisy, AI-generated UI icon crops
+- target output: transparent SVG plus optional inline SVG HTML
+- main technical bet: mask recovery matters more than curve fitting
+- segmentation: two compact U-Net-style branches, one for stroke/outline icons
+  and one for filled/silhouette icons
+- evidence: RGB, HSV, Lab residuals, local contrast, chromatic evidence,
+  gradients, coordinates, and branch-specific features
+- cleanup: conservative morphology and connected components so Potrace does not
+  trace obvious background fragments
+- selection: render-back scoring chooses between stroke and filled candidates
+- integration: CLI, Python API, diagnostics, mask previews, source ids, and a
+  doctor command for fresh-clone setup
+
+This is why the project can be considered state-of-the-art for its narrow
+practical niche: not because it invents a new universal vectorization theory,
+but because it packages the strongest useful pieces for the exact problem of
+turning AI-generated UI icon pixels into reusable web SVG.
+
+During development, we did a broad AI-assisted search across classic tracing
+tools, color vectorizers, interactive design workflows, segmentation-based
+approaches, and recent image-to-SVG research. We did not find an open-source
+local tool whose primary contract was this exact AI-generated UI icon-crop
+problem. That is why this project exists.
+
+## Default Methods
 
 ### Potrace
 

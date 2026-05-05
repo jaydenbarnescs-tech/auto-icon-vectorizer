@@ -29,24 +29,22 @@ If a clean source icon already exists, use that source icon. This tool is most
 useful when the icon only exists as pixels in a generated image, screenshot, or
 mockup and the goal is to recover a usable web asset from those pixels.
 
-The problem it solves is narrower than general image vectorization. Existing
-open source tools are already strong at tracing clean bitmaps, scans, logos,
-pixel art, or full-color artwork:
+The missing piece is not another general raster-to-vector tracer. Existing tools
+already handle clean bitmaps, scans, logos, photos, pixel art, and full-color
+artwork. The under-covered case is much narrower: a tiny blurry icon crop from
+an AI-generated UI image where the icon style is valuable, but the background is
+noisy and the icon only exists as pixels.
 
-| Project | What it is strong at | Where this tool is different |
-| --- | --- | --- |
-| [Potrace](https://github.com/skyrpex/potrace) | Smooth vector paths from a black/white bitmap | Potrace is used here only after the icon foreground mask has been recovered. |
-| [AutoTrace](https://github.com/autotrace/autotrace) | Classic bitmap-to-vector conversion with outline/centerline tracing, despeckling, color reduction, and many output formats | This tool focuses on clean SVG plus optional inline HTML for small UI icons. |
-| [VTracer](https://github.com/visioncortex/vtracer) | Color raster-to-vector conversion for scans, graphics, photos, and pixel art | This tool is tuned for tiny icon crops where background removal is usually harder than curve fitting. |
-| [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) | Browser/Node image-to-SVG tracing with palette and preprocessing options | This tool does not try to vectorize every color layer. It tries to isolate one icon first. |
-| Recent research such as [SAMVG](https://arxiv.org/abs/2311.05276), [StarVector](https://arxiv.org/abs/2312.11556), and [AmodalSVG](https://arxiv.org/abs/2604.10940) | General image-to-SVG generation, segmentation-assisted vectorization, or editable semantic layers | This tool is a lightweight local pipeline for cropped UI icons, not a general SVG generation model. |
+In that case, directly running a tracer often copies background texture into the
+SVG. Replacing the icon with a library icon can lose the generated design's
+style. Regenerating the icon with an image model is heavier, less reproducible,
+and still leaves a raster asset. Auto Icon Vectorizer fills this gap by treating
+foreground mask recovery as the main problem, then using Potrace only after the
+icon has been separated from the background.
 
-The niche is noisy UI icon crops, especially icons taken from screenshots,
-mockups, or AI-generated interface images where the foreground icon may sit on a
-dark, textured, colorful, or patterned background. In those cases, directly
-running a tracer often copies background texture into the SVG. Auto Icon
-Vectorizer treats mask recovery as the main problem, then uses Potrace for the
-final vector path.
+The detailed landscape review is in [docs/RESEARCH.md](docs/RESEARCH.md). It
+covers classic tracers, color vectorizers, design tools, recent image-to-SVG
+research, and why this project focuses on AI-generated UI icon crops.
 
 ![pipeline diagram](examples/pipeline-diagram.png)
 
