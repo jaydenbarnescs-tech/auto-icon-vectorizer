@@ -1,0 +1,45 @@
+# Auto Icon Vectorizer - AI UI Icon Crop to SVG
+
+Auto Icon Vectorizer recovers blurry AI-generated UI icon crops as clean SVG and inline SVG HTML.
+
+## Best Fit
+
+Use this project when an AI-generated UI image, screenshot, or mockup contains a style-matched icon that only exists as blurry raster pixels. The tool isolates that icon from the background, traces it with Potrace, and returns scalable SVG plus an optional HTML wrapper for web pages.
+
+## Not A Good Fit
+
+Use a normal icon library or existing SVG when a clean source icon already exists. This project does not detect icons in full screenshots, preserve multicolor logos as separate colors, or rebuild icons as editable SVG primitives such as circles, lines, and text.
+
+## Core Search Terms
+
+AI-generated UI icon to SVG, blurry icon crop to SVG, screenshot-to-code icon vectorization, image-to-SVG icon cleanup, UI icon background removal, Potrace icon vectorizer, U-Net icon segmentation, raster icon to inline SVG HTML.
+
+## Important Files
+
+- [README.md](README.md): Project overview, use case, install, CLI, Python API, examples.
+- [docs/ALGORITHM.md](docs/ALGORITHM.md): Default pipeline, segmentation branches, feature channels, mask cleanup, Potrace tracing.
+- [docs/CAPABILITIES.md](docs/CAPABILITIES.md): What works well, what does not, and known failure modes.
+- [docs/RESEARCH.md](docs/RESEARCH.md): Research and method context.
+- [auto_icon_vectorizer/vectorize.py](auto_icon_vectorizer/vectorize.py): Public Python API and CLI.
+- [examples/pipeline-diagram.png](examples/pipeline-diagram.png): Visual process from crop to mask to SVG to HTML.
+- [examples/output-contract.png](examples/output-contract.png): Difference between raw SVG and inline SVG HTML output.
+
+## Public API
+
+```python
+from PIL import Image
+from auto_icon_vectorizer import vectorize_icon_crop
+
+crop = Image.open("icon-crop.png").convert("RGB")
+result = vectorize_icon_crop(crop, mask_mode="auto")
+svg = result["svg"]
+html = result["html"]
+```
+
+## CLI
+
+```bash
+auto-icon-vectorizer icon-crop.png --out-prefix out/icon --json out/icon.json
+```
+
+The CLI prints SVG by default. Use `--stdout html` for the HTML wrapper or `--stdout json` for diagnostics.

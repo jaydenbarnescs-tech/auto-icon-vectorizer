@@ -5,14 +5,30 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "auto-icon-vectorizer"
 version = "0.1.0"
-description = "Convert cropped raster UI icons into clean SVG and inline SVG HTML using auto stroke/filled segmentation and Potrace."
+description = "Recover blurry AI-generated UI icon crops as clean SVG and inline SVG HTML using U-Net background removal and Potrace."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [
   { name = "Jayden Barnes" }
 ]
-keywords = ["svg", "icon", "vectorization", "potrace", "segmentation", "u-net", "computer-vision", "ai-generated-ui"]
+keywords = [
+  "svg",
+  "icon",
+  "vectorization",
+  "image-to-svg",
+  "raster-to-vector",
+  "ui-icons",
+  "ai-generated-ui",
+  "screenshot-to-code",
+  "background-removal",
+  "blurry-icons",
+  "icon-cleanup",
+  "potrace",
+  "segmentation",
+  "u-net",
+  "computer-vision"
+]
 dependencies = [
   "cairosvg>=2.7.0",
   "joblib>=1.3.0",

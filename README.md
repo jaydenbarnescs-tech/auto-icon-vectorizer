@@ -1,16 +1,16 @@
-# Auto Icon Vectorizer
+# Auto Icon Vectorizer - AI UI Icon Crop to SVG
 
-Convert a cropped raster UI icon into clean SVG and inline SVG HTML.
+Recover blurry AI-generated UI icon crops as clean SVG and inline SVG HTML.
 
-Auto Icon Vectorizer is a small-image icon cleanup and vectorization tool. It
-takes one cropped raster image that already contains a single UI icon, removes
-the background, traces the recovered foreground mask, and returns both raw SVG
-and an HTML wrapper containing that same inline SVG.
+Auto Icon Vectorizer is an image-to-SVG tool for small UI icons found inside
+AI-generated interface images, screenshots, and mockups. It takes one cropped
+raster icon, removes the background, traces the recovered foreground mask, and
+returns both raw SVG and an HTML wrapper containing that same inline SVG.
 
 ## Why This Exists
 
-This project is mainly for AI-generated UI images and screenshot-to-code
-workflows.
+This project is mainly for AI-generated UI images, screenshot-to-code
+workflows, and blurry icon crops that do not have a clean source SVG.
 
 Image models can generate UI mockups where the icons match the page's visual
 style, color, lighting, and theme. The problem is that those icons usually only
