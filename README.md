@@ -25,6 +25,25 @@ image and turns it into a lightweight SVG. That gives the web page a scalable,
 fast-loading asset while preserving more of the style that was present in the
 original generated design.
 
+One concrete workflow looks like this:
+
+1. An image model generates a website or app mockup.
+2. A screenshot-to-code, website-rebuilder, or UI extraction step finds a small
+   crop around one icon.
+3. That crop is passed to Auto Icon Vectorizer.
+4. The returned SVG or inline SVG HTML is inserted back into the final generated
+   website.
+
+![AI website icon workflow](examples/ai-website-icon-workflow.png)
+
+The important point is that this package does not need to understand the whole
+website. It only needs the cropped icon. The surrounding system can handle page
+layout, text, component structure, and icon detection; Auto Icon Vectorizer
+handles the part where a low-quality generated icon crop becomes a transparent,
+scalable web asset.
+
+![AI website HTML integration](examples/ai-website-html-integration.png)
+
 If a clean source icon already exists, use that source icon. This tool is most
 useful when the icon only exists as pixels in a generated image, screenshot, or
 mockup and the goal is to recover a usable web asset from those pixels.

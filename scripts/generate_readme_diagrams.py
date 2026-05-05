@@ -4,7 +4,7 @@ import textwrap
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +32,8 @@ def main() -> None:
     trace = adapter._load_runtime()
     rendered_rgba = trace.render_svg_transparent(result["svg"], SIZE)
     write_transparent_background_diagram(rendered_rgba)
+    write_ai_website_workflow_diagram(crop, rendered_rgba, result)
+    write_ai_website_integration_diagram(crop, rendered_rgba)
 
 
 def make_demo_crop() -> Image.Image:
@@ -98,6 +100,107 @@ def write_pipeline_diagram(source: Image.Image, mask: Image.Image, rendered: Ima
     draw.text((56, 690), f"Default renderer: {result['diagnostics']['pipelineRenderer']}", fill="#3d4642", font=fonts["small"])
     draw.text((56, 718), "CLI prints SVG by default. Python returns both result['svg'] and result['html'].", fill="#3d4642", font=fonts["small"])
     image.save(EXAMPLES / "pipeline-diagram.png")
+
+
+def write_ai_website_workflow_diagram(crop: Image.Image, icon: Image.Image, result: dict) -> None:
+    width, height = 1720, 820
+    image = Image.new("RGB", (width, height), "#f7f8f6")
+    draw = ImageDraw.Draw(image)
+    fonts = load_fonts()
+    draw.text((54, 44), "Example: Recover An Icon During Website Generation", fill="#161a18", font=fonts["title"])
+    draw_wrapped_text(
+        draw,
+        (56, 94),
+        "A generated website mockup contains a style-matched but blurry raster icon. The website builder crops that icon, sends only the crop to Auto Icon Vectorizer, then inserts the returned inline SVG HTML into the final page.",
+        128,
+        fonts["body"],
+        "#4b5350",
+        27,
+    )
+
+    cards = [
+        ("1. AI-generated UI", "The icon matches the mockup style, but it only exists as blurry pixels.", "mockup"),
+        ("2. Detected icon crop", "A separate detection step passes one small crop to this project.", "crop"),
+        ("3. Vectorizer output", "The mask is recovered and traced into transparent SVG paths.", "vector"),
+        ("4. Final HTML page", "The generated site receives a scalable inline SVG instead of a raster icon.", "final"),
+    ]
+    x_positions = [48, 456, 864, 1272]
+    for index, (title, body, kind) in enumerate(cards):
+        x = x_positions[index]
+        draw_card(draw, (x, 170, x + 360, 700), title, body, fonts)
+        if kind == "mockup":
+            panel = draw_website_mockup((286, 320), crop, icon=None, final=False)
+            image.paste(panel, (x + 37, 330))
+        elif kind == "crop":
+            draw.rounded_rectangle((x + 82, 332, x + 278, 528), radius=10, fill="#121511", outline="#cbd1cb", width=2)
+            image.paste(crop.resize((184, 134), Image.Resampling.LANCZOS), (x + 88, 363))
+            draw.text((x + 92, 560), "detected-card-icon.png", fill="#3d4642", font=fonts["small"])
+        elif kind == "vector":
+            draw.rounded_rectangle((x + 82, 322, x + 278, 518), radius=10, fill="#ffffff", outline="#cbd1cb", width=2)
+            checker = checkerboard((184, 184))
+            checker.alpha_composite(icon.resize((132, 132), Image.Resampling.LANCZOS), (26, 26))
+            image.paste(checker.convert("RGB"), (x + 88, 328))
+            draw_code_box(
+                draw,
+                (x + 50, 548, x + 310, 650),
+                [
+                    'result["svg"]',
+                    'result["html"]',
+                    f'{result["diagnostics"]["selectedMaskMode"]} mask',
+                ],
+                fonts["mono"],
+            )
+        else:
+            panel = draw_website_mockup((286, 320), crop, icon=icon, final=True)
+            image.paste(panel, (x + 37, 330))
+        if index < len(cards) - 1:
+            draw_arrow(draw, (x + 374, 430), (x + 402, 430))
+
+    draw.text(
+        (56, 742),
+        "The icon detector and page generator live outside this package. Auto Icon Vectorizer owns the cropped-icon-to-SVG/HTML step.",
+        fill="#3d4642",
+        font=fonts["small"],
+    )
+    image.save(EXAMPLES / "ai-website-icon-workflow.png")
+
+
+def write_ai_website_integration_diagram(crop: Image.Image, icon: Image.Image) -> None:
+    width, height = 1600, 760
+    image = Image.new("RGB", (width, height), "#f8f7f3")
+    draw = ImageDraw.Draw(image)
+    fonts = load_fonts()
+    draw.text((54, 44), "What The Website Builder Gets Back", fill="#161a18", font=fonts["title"])
+    draw_wrapped_text(
+        draw,
+        (56, 94),
+        "The final page can keep the generated design language while replacing a low-quality icon bitmap with transparent, color-controllable SVG HTML.",
+        120,
+        fonts["body"],
+        "#4b5350",
+        27,
+    )
+
+    draw_card(draw, (70, 165, 730, 650), "Before: Raster Icon From AI Image", "The page generator may detect layout correctly, but the icon remains a small blurred crop.", fonts)
+    before = draw_website_mockup((520, 255), crop, icon=None, final=False)
+    image.paste(before, (140, 380))
+
+    draw_card(draw, (870, 165, 1530, 650), "After: Inline SVG In The HTML", "The page receives a scalable SVG path that can inherit CSS color.", fonts)
+    after = draw_website_mockup((520, 255), crop, icon=icon, final=True)
+    image.paste(after, (940, 380))
+
+    draw_arrow(draw, (744, 422), (856, 422))
+    draw.text((766, 456), "vectorize", fill="#66706c", font=fonts["small"])
+
+    draw_code_box(
+        draw,
+        (930, 305, 1492, 365),
+        [
+            'result["html"] -> <span><svg>...</svg></span>',
+        ],
+        fonts["mono"],
+    )
+    image.save(EXAMPLES / "ai-website-html-integration.png")
 
 
 def write_output_contract_diagram(result: dict) -> None:
@@ -193,6 +296,62 @@ def write_transparent_background_diagram(icon: Image.Image) -> None:
         font=fonts["small"],
     )
     image.save(EXAMPLES / "transparent-backgrounds.png")
+
+
+def draw_website_mockup(size: tuple[int, int], crop: Image.Image, icon: Image.Image | None, final: bool) -> Image.Image:
+    width, height = size
+    image = Image.new("RGB", size, "#ecf1eb")
+    draw = ImageDraw.Draw(image)
+    fonts = load_fonts()
+    compact = width < 380
+    draw.rounded_rectangle((0, 0, width - 1, height - 1), radius=18, fill="#f7f5ee", outline="#cfd6ce", width=2)
+    nav_h = 42 if compact else 40
+    draw.rounded_rectangle((18, 18, width - 18, 18 + nav_h), radius=10, fill="#1a211c")
+    draw.ellipse((34, 31, 46, 43), fill="#d3c096")
+    draw.text((58, 28), "Generated UI", fill="#e7e2d5", font=fonts["small"])
+    draw.rounded_rectangle((width - 104, 29, width - 34, 50), radius=8, fill="#d3c096")
+    draw.text((width - 88, 30), "Open", fill="#1b211d", font=fonts["small"])
+
+    draw.text((34, 82), "Operations", fill="#18201b", font=fonts["heading"])
+    draw.text((34, 115), "Mockup to web page", fill="#58635d", font=fonts["small"])
+    card_y = 150
+    card_specs = [(34, width - 68, "SVG icon" if final else "Raster crop")]
+    if not compact:
+        card_specs.append((width // 2 + 8, width // 2 - 42, "Layout clean"))
+
+    for index, (x, card_w, label) in enumerate(card_specs):
+        card_h = 84 if compact else 86
+        draw.rounded_rectangle((x, card_y, x + card_w, card_y + card_h), radius=12, fill="#ffffff", outline="#d8ddd7", width=2)
+        if index == 0:
+            if icon is None:
+                icon_crop = crop.resize((56, 42), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(0.6))
+                draw.rounded_rectangle((x + 18, card_y + 21, x + 74, card_y + 63), radius=8, fill="#1d221d")
+                image.paste(icon_crop, (x + 18, card_y + 21))
+            else:
+                icon_box = Image.new("RGBA", (56, 56), (0, 0, 0, 0))
+                placed = icon.resize((46, 46), Image.Resampling.LANCZOS)
+                icon_box.alpha_composite(placed, (5, 5))
+                image.paste(icon_box.convert("RGB"), (x + 18, card_y + 14), icon_box)
+            sublabel = "Inline HTML" if final else "Blurred bitmap"
+        else:
+            draw.rounded_rectangle((x + 20, card_y + 18, x + 72, card_y + 70), radius=10, fill="#eef2ed", outline="#d7ded7", width=2)
+            draw.line([(x + 33, card_y + 45), (x + 47, card_y + 59), (x + 64, card_y + 31)], fill="#64746b", width=4)
+            sublabel = "Text and layout"
+        text_x = x + 92
+        draw.text((text_x, card_y + 22), label, fill="#17201b", font=fonts["body_bold"])
+        draw.text((text_x, card_y + 52), sublabel, fill="#63706a", font=fonts["small"])
+    return image
+
+
+def checkerboard(size: tuple[int, int]) -> Image.Image:
+    image = Image.new("RGBA", size, (255, 255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    cell = 14
+    for y in range(0, size[1], cell):
+        for x in range(0, size[0], cell):
+            if (x // cell + y // cell) % 2 == 0:
+                draw.rectangle((x, y, x + cell - 1, y + cell - 1), fill=(227, 231, 226, 255))
+    return image
 
 
 def light_background(size: tuple[int, int]) -> Image.Image:
