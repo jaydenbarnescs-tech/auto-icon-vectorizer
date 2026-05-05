@@ -26,6 +26,21 @@ running a tracer often copies background texture into the SVG. Auto Icon
 Vectorizer treats mask recovery as the main problem, then uses Potrace for the
 final vector path.
 
+Use this project when:
+
+- an app already has a small crop around an icon
+- the goal is clean HTML/SVG that can be inserted into a web page
+- the icon should be separated from a noisy or AI-generated background
+- the icon is mostly one foreground color
+
+Choose a different tool when:
+
+- the input is a full photo, illustration, scan, or complex logo
+- the desired output is a fully editable SVG rebuilt from circles, lines,
+  polygons, text, and named layers
+- every foreground color in a multicolor logo must remain separate
+- the task is to find icons inside a full screenshot
+
 Assumptions:
 
 - the input is already cropped around one icon
@@ -38,7 +53,7 @@ Assumptions:
 - multicolor logos, full screenshots, text recognition, and object detection are
   outside the current scope
 
-The production renderer is:
+Default pipeline:
 
 ```text
 auto-stroke-filled+potrace-default
@@ -217,38 +232,28 @@ Short version:
    and visually close or better; otherwise select stroke.
 10. Return `<span data-vectorizer="..."><svg>...</svg></span>`.
 
-## Papers And Methods Actually Used
+## Technical Approach
 
-The final production path is not SAM, not random forest, and not SVM-first.
-Those were explored, but the shipped renderer is U-Net segmentation plus
-Potrace tracing.
+The implementation combines learned foreground segmentation with classical
+vector tracing:
 
-The papers and methods that directly shaped the final implementation:
+- **U-Net-style segmentation** recovers a foreground mask from RGB, color-space,
+  contrast, residual, gradient, coordinate, and chromatic evidence channels.
+- **Separate stroke and filled branches** handle outline icons and filled icons
+  differently, then an automatic selector chooses the cleaner reconstruction.
+- **Tversky-style training loss** helps with the common imbalance between small
+  icon foreground pixels and larger background areas.
+- **Otsu thresholding, morphology, and connected components** clean the mask,
+  remove small background specks, and preserve real holes such as map-pin
+  centers or tag cutouts.
+- **Potrace** converts the final binary mask into smooth SVG paths.
+- **Color estimation** samples the recovered foreground so the SVG keeps the
+  icon's original visual color instead of defaulting to black.
 
-- Peter Selinger, **Potrace: a polygon-based tracing algorithm** (2003). Used
-  for mask-to-Bezier SVG tracing.
-- Ronneberger, Fischer, Brox, **U-Net: Convolutional Networks for Biomedical
-  Image Segmentation** (2015). Used as the architectural basis for pixel mask
-  segmentation: encoder/decoder, skip-localization idea, strong synthetic data
-  augmentation.
-- Salehi, Erdogmus, Gholipour, **Tversky loss function for image segmentation**
-  (2017). Used in the training loss family to handle foreground/background
-  imbalance.
-- Nobuyuki Otsu, **A Threshold Selection Method from Gray-Level Histograms**
-  (1979). Used in evidence-channel thresholding and earlier mask baselines;
-  retained as part of the evidence pipeline.
-- Classical mathematical morphology and connected component filtering. Used for
-  mask cleanup, tiny speck removal, and preserving intentional holes in filled
-  icons.
-
-Explored but not default:
-
-- SVM pixel masks and SVM endpoint connection repair.
-- Frangi vesselness and Fraz-style line/vessel evidence.
-- GrabCut-style foreground rescue.
-- SAM/SAM2 as an auxiliary signal.
-- Random forest / XGBoost were discussed but intentionally not used in the
-  shipped branch.
+This is a practical hybrid pipeline. It is not intended to replace general
+image vectorizers, full-scene segmentation models, or SVG-code foundation
+models. It is intended for the narrower case where the input is already a small
+icon crop and the main challenge is separating the icon from a messy background.
 
 More detail and source links are in [docs/RESEARCH.md](docs/RESEARCH.md).
 
@@ -288,7 +293,7 @@ auto_icon_vectorizer/
     trace_icon_component.py             # mask cleanup, Potrace call, SVG normalization
     train_aux_fusion_icon_segmenter.py  # stroke gated U-Net architecture/features
     train_filled_silhouette_segmenter.py# filled silhouette model/features
-    apply_svm_connections.py            # visual-diff utilities; SVM experiments are not default
+    apply_svm_connections.py            # visual-diff and mask utility helpers
     generate_spectral_evidence_bank.py  # evidence-map helpers
     nn-seg-results/
       best-gated-unet.pt
