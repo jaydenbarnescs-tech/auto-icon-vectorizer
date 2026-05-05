@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "auto-icon-vectorizer"
 version = "0.1.0"
-description = "Convert cropped raster UI icons into inline SVG HTML using auto stroke/filled segmentation and Potrace."
+description = "Convert cropped raster UI icons into clean SVG and inline SVG HTML using auto stroke/filled segmentation and Potrace."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }

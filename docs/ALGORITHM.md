@@ -1,6 +1,6 @@
 # Algorithm
 
-This document describes the production path in `auto-stroke-filled+potrace-default`.
+This document describes the default path in `auto-stroke-filled+potrace-default`.
 
 The central design decision is that tracing is only the final step. The hard
 problem is producing a foreground mask that contains the icon and not the
@@ -13,7 +13,8 @@ Input:
 
 - one cropped raster icon image
 - accepted as a `PIL.Image.Image`
-- the crop is canonicalized to 128 x 128 pixels internally
+- any input width/height that Pillow can load
+- the crop is converted to RGB and letterboxed to 128 x 128 pixels internally
 - it does not search a full screenshot for icons
 
 Output:
@@ -24,8 +25,9 @@ Output:
 - `diagnostics`: selected branch, mask stats, stroke color, Potrace options,
   visual-diff scores, and optional artifact paths
 
-The returned HTML is the easiest integration point for web apps, site builders,
-and design tools.
+Raw SVG is the default CLI output. The returned HTML wrapper is available for
+web apps, site builders, and design tools that want one DOM-ready string with
+CSS and metadata hooks.
 
 ## Branch 1: Stroke / Outline Segmentation
 
@@ -207,8 +209,8 @@ icons. The regression suite includes this behavior:
 - hybrid tag string -> filled
 - pure outline cube/check/chat icons -> stroke
 
-So the production answer is not "always filled". It is an automatic selector
-that keeps both branches.
+The default behavior is therefore not "always filled". It is an automatic
+selector that keeps both branches.
 
 ## Why Not Union
 

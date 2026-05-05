@@ -1,11 +1,11 @@
 # Auto Icon Vectorizer
 
-Convert a cropped raster UI icon into clean inline SVG HTML.
+Convert a cropped raster UI icon into clean SVG and inline SVG HTML.
 
 Auto Icon Vectorizer is a small-image icon cleanup and vectorization tool. It
 takes one cropped raster image that already contains a single UI icon, removes
-the background, traces the recovered foreground mask, and returns HTML with an
-inline SVG that can be placed directly in a web page.
+the background, traces the recovered foreground mask, and returns both raw SVG
+and an HTML wrapper containing that same inline SVG.
 
 The problem it solves is narrower than general image vectorization. Existing
 open source tools are already strong at tracing clean bitmaps, scans, logos,
@@ -14,7 +14,7 @@ pixel art, or full-color artwork:
 | Project | What it is strong at | Where this tool is different |
 | --- | --- | --- |
 | [Potrace](https://github.com/skyrpex/potrace) | Smooth vector paths from a black/white bitmap | Potrace is used here only after the icon foreground mask has been recovered. |
-| [AutoTrace](https://github.com/autotrace/autotrace) | Classic bitmap-to-vector conversion with outline/centerline tracing, despeckling, color reduction, and many output formats | This tool focuses on one web output shape: inline SVG HTML for small UI icons. |
+| [AutoTrace](https://github.com/autotrace/autotrace) | Classic bitmap-to-vector conversion with outline/centerline tracing, despeckling, color reduction, and many output formats | This tool focuses on clean SVG plus optional inline HTML for small UI icons. |
 | [VTracer](https://github.com/visioncortex/vtracer) | Color raster-to-vector conversion for scans, graphics, photos, and pixel art | This tool is tuned for tiny icon crops where background removal is usually harder than curve fitting. |
 | [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) | Browser/Node image-to-SVG tracing with palette and preprocessing options | This tool does not try to vectorize every color layer. It tries to isolate one icon first. |
 | Recent research such as [SAMVG](https://arxiv.org/abs/2311.05276), [StarVector](https://arxiv.org/abs/2312.11556), and [AmodalSVG](https://arxiv.org/abs/2604.10940) | General image-to-SVG generation, segmentation-assisted vectorization, or editable semantic layers | This tool is a lightweight local pipeline for cropped UI icons, not a general SVG generation model. |
@@ -25,6 +25,8 @@ dark, textured, colorful, or patterned background. In those cases, directly
 running a tracer often copies background texture into the SVG. Auto Icon
 Vectorizer treats mask recovery as the main problem, then uses Potrace for the
 final vector path.
+
+![pipeline diagram](examples/pipeline-diagram.png)
 
 Use this project when:
 
@@ -66,13 +68,26 @@ best:
 stroke / outline icons
   -> gated U-Net stroke mask
   -> Potrace
-  -> inline SVG HTML
+  -> SVG + optional inline SVG HTML
 
 filled / silhouette / hybrid icons
   -> filled-silhouette U-Net mask
   -> Potrace
-  -> inline SVG HTML
+  -> SVG + optional inline SVG HTML
 ```
+
+## Output Contract
+
+The CLI prints raw SVG by default because SVG is the portable asset format. The
+Python API always returns both:
+
+- `result["svg"]`: raw SVG, best for saving an asset or passing to another
+  vector tool
+- `result["html"]`: a `<span>` wrapper containing the same SVG, best when code
+  wants one DOM-ready string with class names, source id, renderer metadata,
+  title, or aria label
+
+![output contract](examples/output-contract.png)
 
 ## Results
 
@@ -130,14 +145,35 @@ auto-icon-vectorizer path/to/icon-crop.png \
   --class-name vector-icon
 ```
 
+By default, the command prints SVG to stdout.
+
 The command writes:
 
 - `examples/my-icon.svg`
-- `examples/my-icon.html`
 - `examples/my-icon-source.png`
 - `examples/my-icon-mask.png`
 - `examples/my-icon-rendered.png`
 - `examples/my-icon.json`
+
+To print the HTML wrapper instead of raw SVG:
+
+```bash
+auto-icon-vectorizer path/to/icon-crop.png --stdout html
+```
+
+To also write a standalone HTML preview next to the SVG artifacts:
+
+```bash
+auto-icon-vectorizer path/to/icon-crop.png \
+  --out-prefix examples/my-icon \
+  --write-html
+```
+
+To print the full diagnostic JSON to stdout:
+
+```bash
+auto-icon-vectorizer path/to/icon-crop.png --stdout json
+```
 
 Run the packaged regression sheet:
 
@@ -190,11 +226,16 @@ The return value is designed for apps that generate or edit web pages:
 
 ## What The Algorithm Takes As Input
 
-Input is an already-cropped raster icon image.
+Input is an already-cropped raster icon image. It does not need to be 128 x 128.
+The public API accepts any image dimensions that Pillow can load. Internally,
+the crop is converted to RGB and letterboxed onto a 128 x 128 model canvas so
+the neural networks and Potrace step operate on a consistent coordinate system.
+The returned SVG has a `viewBox="0 0 128 128"` and can be scaled with CSS or
+normal SVG attributes.
 
 Good inputs:
 
-- a 32-256 px crop around a single UI icon
+- a crop around a single UI icon, from small UI captures to larger source crops
 - icon can be on dark, light, noisy, textured, or colorful AI-generated backgrounds
 - icon foreground is mostly one visual color
 - icon can be outline, filled, or a same-color fill+stroke hybrid
@@ -207,8 +248,8 @@ Bad inputs:
 - extremely small, blurred, or heavily occluded icons
 - icon and background with almost identical color evidence
 
-Output is HTML containing SVG, not just SVG. This makes it easy to place the
-result directly into a generated page while still keeping the raw SVG available.
+Output includes both raw SVG and HTML containing that same SVG. The CLI defaults
+to raw SVG output; the HTML wrapper is available for direct web insertion.
 
 ## How It Works
 
@@ -216,7 +257,8 @@ Detailed algorithm notes are in [docs/ALGORITHM.md](docs/ALGORITHM.md).
 
 Short version:
 
-1. Normalize the crop to 128 x 128 RGB.
+1. Accept an arbitrary-size crop, convert it to RGB, and letterbox it to the
+   internal 128 x 128 model canvas.
 2. Build many per-pixel evidence channels: RGB, HSV, Lab residuals, alpha-like
    chromatic evidence, spectral high-high evidence, local contrast, gradients,
    and coordinates.
@@ -230,7 +272,8 @@ Short version:
    reconstruction.
 9. Select filled when it is plausible, materially larger than the stroke mask,
    and visually close or better; otherwise select stroke.
-10. Return `<span data-vectorizer="..."><svg>...</svg></span>`.
+10. Return raw SVG plus an optional `<span data-vectorizer="..."><svg>...</svg></span>`
+    HTML wrapper.
 
 ## Technical Approach
 

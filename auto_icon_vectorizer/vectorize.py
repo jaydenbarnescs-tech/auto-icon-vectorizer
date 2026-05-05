@@ -1,8 +1,8 @@
 """Auto stroke/filled icon vectorizer.
 
-Pass an already-cropped raster icon image to this module. It returns HTML
-containing an inline SVG, the raw SVG, simple path metadata, and
-diagnostics describing the selected mask branch.
+Pass an already-cropped raster icon image to this module. It returns the raw
+SVG, HTML containing the inline SVG, simple path metadata, and diagnostics
+describing the selected mask branch.
 """
 
 from __future__ import annotations
@@ -41,8 +41,9 @@ def vectorize_icon_crop(
     aria_label: str | None = None,
     output_prefix: Path | None = None,
     mask_mode: str = "auto",
+    write_html_artifact: bool = True,
 ) -> JsonDict:
-    """Convert an icon crop to inline SVG HTML using the local vendored runtime."""
+    """Convert an arbitrary-size icon crop to SVG and inline SVG HTML."""
 
     trace = _load_runtime()
     size = int(trace.SIZE)
@@ -52,7 +53,11 @@ def vectorize_icon_crop(
     svg = selected["svg"]
     svg = _prepare_svg(svg, title=title, aria_label=aria_label)
     html = _wrap_svg(svg, class_name=class_name, source_id=source_id or node_id, renderer=selected["renderer"])
-    artifacts = _write_artifacts(trace, source, mask, svg, html, Path(output_prefix)) if output_prefix else {}
+    artifacts = (
+        _write_artifacts(trace, source, mask, svg, html, Path(output_prefix), write_html=write_html_artifact)
+        if output_prefix
+        else {}
+    )
     paths = [
         {
             "type": "potrace_path",
@@ -318,18 +323,28 @@ def _normalize_classes(class_name: str) -> str:
     return " ".join(dict.fromkeys(names))
 
 
-def _write_artifacts(trace: Any, source: Image.Image, mask: Any, svg: str, icon_html: str, output_prefix: Path) -> JsonDict:
+def _write_artifacts(
+    trace: Any,
+    source: Image.Image,
+    mask: Any,
+    svg: str,
+    icon_html: str,
+    output_prefix: Path,
+    *,
+    write_html: bool,
+) -> JsonDict:
     output_prefix.parent.mkdir(parents=True, exist_ok=True)
     artifacts = {
         "source": str(output_prefix.with_name(output_prefix.name + "-source.png")),
         "mask": str(output_prefix.with_name(output_prefix.name + "-mask.png")),
         "svg": str(output_prefix.with_suffix(".svg")),
-        "html": str(output_prefix.with_suffix(".html")),
     }
     source.save(artifacts["source"])
     trace.mask_debug_image(mask).save(artifacts["mask"])
     Path(artifacts["svg"]).write_text(svg, encoding="utf-8")
-    Path(artifacts["html"]).write_text(trace.standalone_html(icon_html), encoding="utf-8")
+    if write_html:
+        artifacts["html"] = str(output_prefix.with_suffix(".html"))
+        Path(artifacts["html"]).write_text(trace.standalone_html(icon_html), encoding="utf-8")
 
     try:
         rendered = trace.transparent_preview(trace.render_svg_transparent(svg, int(trace.SIZE)), int(trace.SIZE))
@@ -346,6 +361,8 @@ def main() -> None:
     parser.add_argument("image", type=Path)
     parser.add_argument("--out-prefix", type=Path)
     parser.add_argument("--json", type=Path)
+    parser.add_argument("--stdout", choices=["svg", "html", "json"], default="svg")
+    parser.add_argument("--write-html", action="store_true", help="Also write a standalone HTML preview when --out-prefix is set.")
     parser.add_argument("--source-id", default=None)
     parser.add_argument("--node-id", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--class-name", default="vector-icon")
@@ -363,12 +380,16 @@ def main() -> None:
         aria_label=args.aria_label,
         output_prefix=args.out_prefix,
         mask_mode=args.mask_mode,
+        write_html_artifact=args.write_html,
     )
     payload = json.dumps(result, ensure_ascii=False, indent=2)
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(payload + "\n", encoding="utf-8")
-    print(payload)
+    if args.stdout == "json":
+        print(payload)
+    else:
+        print(result[args.stdout])
 
 
 if __name__ == "__main__":
