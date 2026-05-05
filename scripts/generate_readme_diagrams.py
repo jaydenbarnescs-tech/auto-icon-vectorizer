@@ -18,6 +18,11 @@ from auto_icon_vectorizer import vectorize_icon_crop
 EXAMPLES = ROOT / "examples"
 SIZE = 128
 SCALE = 4
+AI_UI_SNAPSHOT = EXAMPLES / "ai-generated-ui-snapshot.png"
+AI_UI_ICON_CROP = EXAMPLES / "ai-generated-ui-icon-crop.png"
+AI_UI_ICON_BOX = (185, 280, 330, 425)
+AI_UI_WIDE_VIEW_BOX = (80, 95, 1550, 520)
+AI_UI_CARD_VIEW_BOX = (130, 210, 630, 455)
 
 
 def main() -> None:
@@ -34,8 +39,11 @@ def main() -> None:
     trace = adapter._load_runtime()
     rendered_rgba = trace.render_svg_transparent(result["svg"], SIZE)
     write_transparent_background_diagram(rendered_rgba)
-    write_ai_website_workflow_diagram(crop, rendered_rgba, result)
-    write_ai_website_integration_diagram(crop, rendered_rgba)
+    ai_snapshot, ai_crop = load_ai_generated_ui_assets()
+    ai_result = vectorize_icon_crop(ai_crop)
+    ai_rendered_rgba = trace.render_svg_transparent(ai_result["svg"], SIZE)
+    write_ai_website_workflow_diagram(ai_snapshot, ai_crop, ai_rendered_rgba, ai_result)
+    write_ai_website_integration_diagram(ai_snapshot, ai_rendered_rgba)
     write_tracing_limitations_diagram(trace)
 
 
@@ -100,6 +108,17 @@ def make_colored_pin_crop() -> Image.Image:
     return image.resize((220, 160), Image.Resampling.LANCZOS)
 
 
+def load_ai_generated_ui_assets() -> tuple[Image.Image, Image.Image]:
+    if not AI_UI_SNAPSHOT.exists():
+        raise FileNotFoundError(
+            f"{AI_UI_SNAPSHOT} is required. It is a checked-in AI-generated UI snapshot used by the README diagrams."
+        )
+    snapshot = Image.open(AI_UI_SNAPSHOT).convert("RGB")
+    crop = snapshot.crop(AI_UI_ICON_BOX)
+    crop.save(AI_UI_ICON_CROP)
+    return snapshot, crop
+
+
 def write_pipeline_diagram(source: Image.Image, mask: Image.Image, rendered: Image.Image, result: dict) -> None:
     width, height = 1680, 760
     image = Image.new("RGB", (width, height), "#f7f8f6")
@@ -152,7 +171,7 @@ def write_pipeline_diagram(source: Image.Image, mask: Image.Image, rendered: Ima
     image.save(EXAMPLES / "pipeline-diagram.png")
 
 
-def write_ai_website_workflow_diagram(crop: Image.Image, icon: Image.Image, result: dict) -> None:
+def write_ai_website_workflow_diagram(snapshot: Image.Image, crop: Image.Image, icon: Image.Image, result: dict) -> None:
     width, height = 1720, 820
     image = Image.new("RGB", (width, height), "#f7f8f6")
     draw = ImageDraw.Draw(image)
@@ -179,12 +198,12 @@ def write_ai_website_workflow_diagram(crop: Image.Image, icon: Image.Image, resu
         x = x_positions[index]
         draw_card(draw, (x, 170, x + 360, 700), title, body, fonts)
         if kind == "mockup":
-            panel = draw_website_mockup((286, 320), crop, icon=None, final=False)
-            image.paste(panel, (x + 37, 330))
+            panel = ai_generated_ui_panel(snapshot, (286, 190), final_icon=None, view_box=AI_UI_CARD_VIEW_BOX)
+            image.paste(panel, (x + 37, 335))
         elif kind == "crop":
-            draw.rounded_rectangle((x + 82, 332, x + 278, 528), radius=10, fill="#121511", outline="#cbd1cb", width=2)
-            image.paste(crop.resize((184, 134), Image.Resampling.LANCZOS), (x + 88, 363))
-            draw.text((x + 92, 560), "detected-card-icon.png", fill="#3d4642", font=fonts["small"])
+            draw.rounded_rectangle((x + 82, 324, x + 278, 520), radius=10, fill="#ffffff", outline="#cbd1cb", width=2)
+            image.paste(crop.resize((184, 184), Image.Resampling.LANCZOS), (x + 88, 330))
+            draw.text((x + 86, 555), "crop from generated UI", fill="#3d4642", font=fonts["small"])
         elif kind == "vector":
             draw.rounded_rectangle((x + 82, 322, x + 278, 518), radius=10, fill="#ffffff", outline="#cbd1cb", width=2)
             checker = checkerboard((184, 184))
@@ -201,8 +220,8 @@ def write_ai_website_workflow_diagram(crop: Image.Image, icon: Image.Image, resu
                 fonts["mono"],
             )
         else:
-            panel = draw_website_mockup((286, 320), crop, icon=icon, final=True)
-            image.paste(panel, (x + 37, 330))
+            panel = ai_generated_ui_panel(snapshot, (286, 190), final_icon=icon, view_box=AI_UI_CARD_VIEW_BOX)
+            image.paste(panel, (x + 37, 335))
         if index < len(cards) - 1:
             draw_arrow(draw, (x + 374, 430), (x + 402, 430))
 
@@ -215,7 +234,7 @@ def write_ai_website_workflow_diagram(crop: Image.Image, icon: Image.Image, resu
     image.save(EXAMPLES / "ai-website-icon-workflow.png")
 
 
-def write_ai_website_integration_diagram(crop: Image.Image, icon: Image.Image) -> None:
+def write_ai_website_integration_diagram(snapshot: Image.Image, icon: Image.Image) -> None:
     width, height = 1600, 760
     image = Image.new("RGB", (width, height), "#f8f7f3")
     draw = ImageDraw.Draw(image)
@@ -231,20 +250,20 @@ def write_ai_website_integration_diagram(crop: Image.Image, icon: Image.Image) -
         27,
     )
 
-    draw_card(draw, (70, 165, 730, 650), "Before: Raster Icon From AI Image", "The page generator may detect layout correctly, but the icon remains a small blurred crop.", fonts)
-    before = draw_website_mockup((520, 255), crop, icon=None, final=False)
-    image.paste(before, (140, 380))
+    draw_card(draw, (70, 165, 730, 650), "Before: Raster Icon From AI Image", "The page generator may detect layout correctly, but the icon remains a small blurred crop inside the generated screenshot.", fonts)
+    before = ai_generated_ui_panel(snapshot, (520, 255), final_icon=None, view_box=AI_UI_WIDE_VIEW_BOX)
+    image.paste(before, (140, 365))
 
-    draw_card(draw, (870, 165, 1530, 650), "After: Inline SVG In The HTML", "The page receives a scalable SVG path that can inherit CSS color.", fonts)
-    after = draw_website_mockup((520, 255), crop, icon=icon, final=True)
-    image.paste(after, (940, 380))
+    draw_card(draw, (870, 165, 1530, 650), "After: Inline SVG In The HTML", "The reconstructed page inserts a scalable SVG path where the raster icon crop was used.", fonts)
+    after = ai_generated_ui_panel(snapshot, (520, 255), final_icon=icon, view_box=AI_UI_WIDE_VIEW_BOX)
+    image.paste(after, (940, 365))
 
     draw_arrow(draw, (744, 422), (856, 422))
     draw.text((766, 456), "vectorize", fill="#66706c", font=fonts["small"])
 
     draw_code_box(
         draw,
-        (930, 305, 1492, 365),
+        (930, 310, 1492, 370),
         [
             'result["html"] -> <span><svg>...</svg></span>',
         ],
@@ -314,6 +333,70 @@ def write_tracing_limitations_diagram(trace) -> None:
         24,
     )
     image.save(EXAMPLES / "tracing-alone-failure-modes.png")
+
+
+def ai_generated_ui_panel(
+    snapshot: Image.Image,
+    size: tuple[int, int],
+    *,
+    final_icon: Image.Image | None,
+    view_box: tuple[int, int, int, int],
+) -> Image.Image:
+    source = snapshot.crop(view_box).convert("RGB")
+    panel = source.resize(size, Image.Resampling.LANCZOS).convert("RGBA")
+    draw = ImageDraw.Draw(panel)
+    mapped = map_box(AI_UI_ICON_BOX, view_box, size)
+    if final_icon is None:
+        draw.rounded_rectangle(mapped, radius=6, outline=(41, 49, 44, 220), width=3)
+        label_w = min(140, size[0] - mapped[0] - 8)
+        label_box = (mapped[0], max(4, mapped[1] - 26), mapped[0] + label_w, max(28, mapped[1] - 4))
+        draw.rounded_rectangle(label_box, radius=5, fill=(24, 30, 27, 215))
+        draw.text((label_box[0] + 7, label_box[1] + 3), "detected crop", fill=(235, 238, 232, 255), font=load_fonts()["small"])
+    else:
+        clear_icon_region(panel, mapped)
+        paste_vector_icon(panel, final_icon, mapped)
+        draw.rounded_rectangle(mapped, radius=6, outline=(207, 166, 72, 235), width=3)
+        label_w = min(142, size[0] - mapped[0] - 8)
+        label_box = (mapped[0], max(4, mapped[1] - 26), mapped[0] + label_w, max(28, mapped[1] - 4))
+        draw.rounded_rectangle(label_box, radius=5, fill=(207, 166, 72, 230))
+        draw.text((label_box[0] + 7, label_box[1] + 3), "inline SVG", fill=(31, 33, 28, 255), font=load_fonts()["small"])
+    return panel.convert("RGB")
+
+
+def map_box(box: tuple[int, int, int, int], view_box: tuple[int, int, int, int], size: tuple[int, int]) -> tuple[int, int, int, int]:
+    x0, y0, x1, y1 = box
+    vx0, vy0, vx1, vy1 = view_box
+    sx = size[0] / max(1, vx1 - vx0)
+    sy = size[1] / max(1, vy1 - vy0)
+    return (
+        round((x0 - vx0) * sx),
+        round((y0 - vy0) * sy),
+        round((x1 - vx0) * sx),
+        round((y1 - vy0) * sy),
+    )
+
+
+def clear_icon_region(panel: Image.Image, box: tuple[int, int, int, int]) -> None:
+    draw = ImageDraw.Draw(panel)
+    x0, y0, x1, y1 = box
+    cx = (x0 + x1) // 2
+    cy = (y0 + y1) // 2
+    radius = max(18, min(x1 - x0, y1 - y0) // 2 - 5)
+    draw.ellipse(
+        (cx - radius, cy - radius, cx + radius, cy + radius),
+        fill=(245, 237, 220, 255),
+        outline=(231, 217, 188, 255),
+        width=1,
+    )
+
+
+def paste_vector_icon(panel: Image.Image, icon: Image.Image, box: tuple[int, int, int, int]) -> None:
+    x0, y0, x1, y1 = box
+    side = max(18, min(x1 - x0, y1 - y0) - 28)
+    placed = icon.resize((side, side), Image.Resampling.LANCZOS)
+    px = (x0 + x1 - side) // 2
+    py = (y0 + y1 - side) // 2
+    panel.alpha_composite(placed, (px, py))
 
 
 def trace_blurry_crop_auto(trace, crop: Image.Image) -> Image.Image:
@@ -464,51 +547,6 @@ def write_transparent_background_diagram(icon: Image.Image) -> None:
         font=fonts["small"],
     )
     image.save(EXAMPLES / "transparent-backgrounds.png")
-
-
-def draw_website_mockup(size: tuple[int, int], crop: Image.Image, icon: Image.Image | None, final: bool) -> Image.Image:
-    width, height = size
-    image = Image.new("RGB", size, "#ecf1eb")
-    draw = ImageDraw.Draw(image)
-    fonts = load_fonts()
-    compact = width < 380
-    draw.rounded_rectangle((0, 0, width - 1, height - 1), radius=18, fill="#f7f5ee", outline="#cfd6ce", width=2)
-    nav_h = 42 if compact else 40
-    draw.rounded_rectangle((18, 18, width - 18, 18 + nav_h), radius=10, fill="#1a211c")
-    draw.ellipse((34, 31, 46, 43), fill="#d3c096")
-    draw.text((58, 28), "Generated UI", fill="#e7e2d5", font=fonts["small"])
-    draw.rounded_rectangle((width - 104, 29, width - 34, 50), radius=8, fill="#d3c096")
-    draw.text((width - 88, 30), "Open", fill="#1b211d", font=fonts["small"])
-
-    draw.text((34, 82), "Operations", fill="#18201b", font=fonts["heading"])
-    draw.text((34, 115), "Mockup to web page", fill="#58635d", font=fonts["small"])
-    card_y = 150
-    card_specs = [(34, width - 68, "SVG icon" if final else "Raster crop")]
-    if not compact:
-        card_specs.append((width // 2 + 8, width // 2 - 42, "Layout clean"))
-
-    for index, (x, card_w, label) in enumerate(card_specs):
-        card_h = 84 if compact else 86
-        draw.rounded_rectangle((x, card_y, x + card_w, card_y + card_h), radius=12, fill="#ffffff", outline="#d8ddd7", width=2)
-        if index == 0:
-            if icon is None:
-                icon_crop = crop.resize((56, 42), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(0.6))
-                draw.rounded_rectangle((x + 18, card_y + 21, x + 74, card_y + 63), radius=8, fill="#1d221d")
-                image.paste(icon_crop, (x + 18, card_y + 21))
-            else:
-                icon_box = Image.new("RGBA", (56, 56), (0, 0, 0, 0))
-                placed = icon.resize((46, 46), Image.Resampling.LANCZOS)
-                icon_box.alpha_composite(placed, (5, 5))
-                image.paste(icon_box.convert("RGB"), (x + 18, card_y + 14), icon_box)
-            sublabel = "Inline HTML" if final else "Blurred bitmap"
-        else:
-            draw.rounded_rectangle((x + 20, card_y + 18, x + 72, card_y + 70), radius=10, fill="#eef2ed", outline="#d7ded7", width=2)
-            draw.line([(x + 33, card_y + 45), (x + 47, card_y + 59), (x + 64, card_y + 31)], fill="#64746b", width=4)
-            sublabel = "Text and layout"
-        text_x = x + 92
-        draw.text((text_x, card_y + 22), label, fill="#17201b", font=fonts["body_bold"])
-        draw.text((text_x, card_y + 52), sublabel, fill="#63706a", font=fonts["small"])
-    return image
 
 
 def checkerboard(size: tuple[int, int]) -> Image.Image:

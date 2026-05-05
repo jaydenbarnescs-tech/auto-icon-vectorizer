@@ -45,6 +45,34 @@ HTML:
 README diagram showing that the generated SVG has a transparent background and
 can be applied to light, dark, patterned, or gradient surfaces.
 
+## `ai-generated-ui-snapshot.png`
+
+AI-generated dashboard snapshot used by the README workflow diagrams. This is a
+checked-in source image, not a hand-drawn placeholder.
+
+## `ai-generated-ui-icon-crop.png`
+
+The card icon crop extracted from `ai-generated-ui-snapshot.png` by
+`scripts/generate_readme_diagrams.py`. The workflow diagrams pass this crop
+through the vectorizer and insert the resulting SVG back into the final-page
+example.
+
+## `ai-website-icon-workflow.png`
+
+README diagram showing:
+
+```text
+AI-generated UI snapshot -> detected icon crop -> vectorizer output -> final HTML page
+```
+
+The UI snapshot and crop are generated-image assets, while the SVG output is
+produced by the local vectorizer.
+
+## `ai-website-html-integration.png`
+
+README diagram showing the before/after integration: a raster icon inside the
+generated UI snapshot becomes inline SVG in the reconstructed HTML page.
+
 ## `tracing-alone-failure-modes.png`
 
 README diagram showing why direct tracing is not enough for blurry

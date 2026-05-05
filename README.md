@@ -34,6 +34,10 @@ One concrete workflow looks like this:
 4. The returned SVG or inline SVG HTML is inserted back into the final generated
    website.
 
+The diagram below uses a generated dashboard snapshot checked into this repo at
+`examples/ai-generated-ui-snapshot.png`, then crops the small card icon from
+that snapshot.
+
 ![AI website icon workflow](examples/ai-website-icon-workflow.png)
 
 The important point is that this package does not need to understand the whole
