@@ -29,25 +29,28 @@ filled / silhouette / hybrid icons
   -> inline SVG HTML
 ```
 
-## Current Results
+## Results
 
-Regression routing sheet:
+The examples below show the final output only: original crop on the left,
+generated inline SVG on the right. The checkerboard means the SVG background is
+transparent.
 
-![regression sheet](examples/icon-vectorizer-regression.png)
+![results overview](examples/results-overview.png)
 
-Hybrid fill+stroke stress sheet:
+What this demonstrates:
 
-![hybrid sheet](examples/hybrid-fill-stroke-eval-after-auto-threshold.png)
+- background removal on dark, light, noisy, and colored crops
+- outline icons with connected strokes
+- filled icons with holes/cutouts
+- mixed fill+stroke icons
+- automatic selection between the stroke and filled mask branches
 
-Real outline-vs-filled diagnostic sheet:
-
-![real diagnostic sheet](examples/real-filled-vs-stroke-eval.png)
-
-The included regression checks currently pass:
+Current regression status:
 
 ```text
-6/6 routing cases passed
-selected masks: filled=2, stroke=4
+6/6 examples pass
+filled branch selected: 2
+stroke branch selected: 4
 ```
 
 ## Install
