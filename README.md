@@ -85,10 +85,14 @@ blurred, while the AI-generated background may contain stripes, dots, gradients,
 or similarly colored decoration. A tracer sees all of those pixels unless a
 separate step first decides which pixels belong to the icon.
 
-The examples below compare simple tracer-first approaches with this project's
-mask-recovery-first approach. Direct thresholding can lose weak strokes or copy
-background blobs. Edge tracing finds many edges, but background edges are not
-icon foreground. The useful tracer input is the cleaned foreground mask.
+The examples below use normal card-style UI backgrounds, not intentionally
+complicated patterns. They compare tracer-first approaches with this project's
+mask-recovery-first approach. Direct binary tracing can lose weak strokes or
+turn antialiasing into blobs. Palette/color-layer tracing can keep the icon's
+card halo or soft container instead of only the icon. The useful tracer input is
+the cleaned foreground mask. The baseline columns represent the two common
+families of existing tools: black/white bitmap tracing and color-layer
+vectorization.
 
 ![tracing alone failure modes](examples/tracing-alone-failure-modes.png)
 

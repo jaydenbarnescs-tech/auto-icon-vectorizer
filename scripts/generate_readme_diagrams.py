@@ -61,51 +61,52 @@ def make_demo_crop() -> Image.Image:
     return image
 
 
-def make_low_contrast_check_crop() -> Image.Image:
-    image = Image.new("RGB", (220, 160), (72, 78, 82))
+def make_plain_blurry_chat_crop() -> Image.Image:
+    image = Image.new("RGB", (220, 160), (249, 248, 244))
     draw = ImageDraw.Draw(image)
-    for y in range(160):
-        t = y / 159
-        color = (
-            round(52 * (1 - t) + 88 * t),
-            round(67 * (1 - t) + 82 * t),
-            round(74 * (1 - t) + 70 * t),
-        )
-        draw.line([(0, y), (220, y)], fill=color)
-    for x in range(-120, 260, 22):
-        draw.line([(x, 0), (x + 170, 160)], fill=(88, 72, 96), width=6)
-    for _x, _y, radius, color in [
-        (42, 34, 17, (108, 91, 118)),
-        (176, 112, 23, (92, 106, 98)),
-        (132, 44, 13, (115, 96, 68)),
-    ]:
-        draw.ellipse((_x - radius, _y - radius, _x + radius, _y + radius), fill=color)
-    icon = (203, 183, 135)
-    draw.ellipse([54, 22, 166, 134], outline=icon, width=6)
-    draw.line([(82, 80), (101, 98), (140, 58)], fill=icon, width=9, joint="curve")
-    return image.filter(ImageFilter.GaussianBlur(0.35))
+    draw.rounded_rectangle((18, 20, 202, 140), radius=18, fill=(255, 255, 253), outline=(224, 224, 219), width=1)
+    draw.ellipse((55, 26, 151, 122), fill=(244, 235, 215))
+    icon = (188, 142, 54)
+    draw.ellipse((82, 50, 125, 93), outline=icon, width=5)
+    draw.rectangle((93, 64, 116, 81), outline=icon, width=4)
+    draw.line((98, 81, 91, 90), fill=icon, width=4)
+    draw.line((82, 51, 127, 95), fill=icon, width=5)
+    return ai_blur(image, blur=0.85, jpeg_quality=62)
 
 
-def make_colored_pin_crop() -> Image.Image:
-    size = SIZE * SCALE
-    image = Image.new("RGB", (size, size), (75, 82, 64))
+def make_plain_low_contrast_check_crop() -> Image.Image:
+    image = Image.new("RGB", (220, 160), (245, 242, 234))
     draw = ImageDraw.Draw(image)
-    s = SCALE
-    icon = (66, 125, 89)
-    draw.polygon([(20*s, 55*s), (61*s, 24*s), (106*s, 34*s), (95*s, 78*s), (55*s, 108*s)], fill=icon)
-    draw.ellipse([75*s, 42*s, 88*s, 55*s], fill=(75, 82, 64))
-    draw.arc([76*s, 12*s, 119*s, 56*s], 205, 34, fill=icon, width=6*s)
-    draw.line([(107*s, 27*s), (116*s, 17*s)], fill=icon, width=5*s)
-    for x, y, r, color in [
-        (18, 29, 7, (155, 119, 33)),
-        (106, 12, 5, (20, 117, 142)),
-        (14, 89, 8, (140, 70, 155)),
-        (111, 95, 3, (191, 68, 52)),
-        (34, 113, 5, (162, 130, 40)),
-    ]:
-        draw.ellipse([(x-r)*s, (y-r)*s, (x+r)*s, (y+r)*s], fill=color)
-    image = image.filter(ImageFilter.GaussianBlur(0.35))
-    return image.resize((220, 160), Image.Resampling.LANCZOS)
+    draw.rounded_rectangle((22, 19, 198, 141), radius=18, fill=(251, 249, 244), outline=(226, 222, 212), width=1)
+    draw.ellipse((56, 24, 152, 120), fill=(238, 229, 208))
+    icon = (190, 147, 56)
+    draw.ellipse((80, 47, 128, 95), outline=icon, width=5)
+    draw.line((92, 73, 103, 84, 123, 60), fill=icon, width=7, joint="curve")
+    return ai_blur(image, blur=0.72, jpeg_quality=66)
+
+
+def make_plain_blurry_filled_tag_crop() -> Image.Image:
+    image = Image.new("RGB", (220, 160), (246, 248, 244))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((20, 18, 200, 142), radius=18, fill=(255, 255, 252), outline=(224, 228, 220), width=1)
+    draw.ellipse((55, 26, 151, 122), fill=(244, 235, 215))
+    icon = (188, 142, 54)
+    draw.polygon([(69, 78), (108, 48), (151, 58), (140, 100), (100, 130)], fill=icon)
+    draw.ellipse((120, 65, 133, 78), fill=(244, 235, 215))
+    draw.arc((125, 31, 174, 80), 202, 30, fill=icon, width=5)
+    draw.line((162, 47, 174, 36), fill=icon, width=4)
+    return ai_blur(image, blur=0.95, jpeg_quality=58)
+
+
+def ai_blur(image: Image.Image, *, blur: float, jpeg_quality: int) -> Image.Image:
+    import io
+
+    small = image.resize((92, 67), Image.Resampling.LANCZOS)
+    small = small.filter(ImageFilter.GaussianBlur(blur))
+    buf = io.BytesIO()
+    small.save(buf, format="JPEG", quality=jpeg_quality)
+    buf.seek(0)
+    return Image.open(buf).convert("RGB").resize((220, 160), Image.Resampling.BICUBIC)
 
 
 def load_ai_generated_ui_assets() -> tuple[Image.Image, Image.Image]:
@@ -274,29 +275,29 @@ def write_ai_website_integration_diagram(snapshot: Image.Image, icon: Image.Imag
 
 def write_tracing_limitations_diagram(trace) -> None:
     cases = [
-        ("Patterned outline crop", make_demo_crop()),
-        ("Low-contrast line crop", make_low_contrast_check_crop()),
-        ("Colorful hybrid crop", make_colored_pin_crop()),
+        ("Plain card, blurred line icon", make_plain_blurry_chat_crop()),
+        ("Plain card, low-contrast stroke", make_plain_low_contrast_check_crop()),
+        ("Plain card, blurred filled icon", make_plain_blurry_filled_tag_crop()),
     ]
     width, height = 1740, 1140
     image = Image.new("RGB", (width, height), "#f8f7f3")
     draw = ImageDraw.Draw(image)
     fonts = load_fonts()
-    draw.text((54, 42), "Why Tracing Alone Fails On Blurry Generated Icons", fill="#161a18", font=fonts["title"])
+    draw.text((54, 42), "Why Tracer-First Algorithms Fail On Blurry Icons", fill="#161a18", font=fonts["title"])
     draw_wrapped_text(
         draw,
         (56, 92),
-        "Classic vectorizers are strong after the foreground mask is clean. On tiny AI-generated crops, direct thresholding or edge tracing often copies background texture, loses weak strokes, or turns blur into chunky shapes.",
+        "These examples use ordinary card-style UI backgrounds. The hard part is still that the icon is a tiny blurred raster object. Tracer-first methods must guess a bitmap or color layer before tracing; this project recovers the icon mask first.",
         130,
         fonts["body"],
         "#4b5350",
         27,
     )
     columns = [
-        ("Input crop", "Blurry raster icon with generated background"),
-        ("Direct threshold trace", "Global black/white threshold before Potrace"),
-        ("Edge-map trace", "Edges are not the same thing as icon foreground"),
-        ("Mask recovery + Potrace", "This project separates the icon first"),
+        ("Input crop", "Blurry icon on a normal UI card"),
+        ("Tracer-first: binary", "Otsu threshold + Potrace, like a one-click bitmap trace"),
+        ("Tracer-first: palette", "Color-layer style trace keeps halos or weak blobs"),
+        ("This project", "U-Net mask recovery, cleanup, then Potrace"),
     ]
     x_positions = [70, 470, 870, 1270]
     for x, (title, subtitle) in zip(x_positions, columns):
@@ -309,7 +310,7 @@ def write_tracing_limitations_diagram(trace) -> None:
         panels = [
             crop.resize((190, 138), Image.Resampling.LANCZOS),
             trace_blurry_crop_direct(trace, crop, "threshold"),
-            trace_blurry_crop_direct(trace, crop, "edges"),
+            trace_blurry_crop_direct(trace, crop, "palette"),
             trace_blurry_crop_auto(trace, crop),
         ]
         for x, panel in zip(x_positions, panels):
@@ -326,7 +327,7 @@ def write_tracing_limitations_diagram(trace) -> None:
     draw_wrapped_text(
         draw,
         (56, 1090),
-        "Manual design-tool tracing can still be useful for one-off cleanup. The problem here is automation: a website generator cannot pause for a human to tune thresholds, erase background fragments, and re-export every icon.",
+        "Manual design-tool tracing can still be useful for one-off cleanup. The automation problem is that a website generator cannot pause for a human to choose the best threshold, delete card halos, reconnect blurry strokes, and re-export every icon.",
         150,
         fonts["small"],
         "#3d4642",
@@ -401,7 +402,7 @@ def paste_vector_icon(panel: Image.Image, icon: Image.Image, box: tuple[int, int
 
 def trace_blurry_crop_auto(trace, crop: Image.Image) -> Image.Image:
     try:
-        result = vectorize_icon_crop(crop)
+        result = vectorize_icon_crop(crop, icon_color="#b8892f")
         return trace.render_svg_transparent(result["svg"], SIZE)
     except Exception:
         return failure_panel_rgba("trace failed")
@@ -421,6 +422,20 @@ def trace_blurry_crop_direct(trace, crop: Image.Image, mode: str) -> Image.Image
             edges = cv2.Canny(gray, 35, 100)
             kernel = np.ones((2, 2), np.uint8)
             mask = cv2.dilate(edges, kernel, iterations=1) > 0
+        elif mode == "palette":
+            lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
+            border = np.zeros(gray.shape, dtype=bool)
+            border[:8, :] = True
+            border[-8:, :] = True
+            border[:, :8] = True
+            border[:, -8:] = True
+            bg = np.median(lab[border], axis=0)
+            dist = np.linalg.norm(lab - bg[None, None, :], axis=2)
+            # Approximate a palette/color-layer vectorizer: anything far enough
+            # from the card background becomes traceable foreground. This often
+            # keeps normal UI icon containers and blur halos, not only the icon.
+            mask = dist > max(8.0, float(np.percentile(dist, 76)))
+            mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8)) > 0
         else:
             raise ValueError(mode)
         mask = trace.preprocess_mask_for_potrace(mask.astype(np.uint8))

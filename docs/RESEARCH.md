@@ -114,14 +114,16 @@ fitting:
   background regions
 - color tracing can preserve generated background layers that should be
   discarded
-- edge tracing finds background edges as confidently as icon edges
+- palette or color-layer tracing can preserve ordinary UI icon containers,
+  shadows, and halos as vector layers
 - JPEG/PNG blur and antialiasing turn one stroke into a fuzzy band that needs
   foreground/background reasoning before tracing
 
 The README visual sheet
 [`examples/tracing-alone-failure-modes.png`](../examples/tracing-alone-failure-modes.png)
-shows these failure modes on generated blurry icon crops. This is why this
-project uses mask recovery first and Potrace second.
+shows these failure modes on generated blurry icon crops with normal card-style
+UI backgrounds. This is why this project uses mask recovery first and Potrace
+second.
 
 If a clean source icon already exists and style matching does not matter, that
 source icon is better. This project is for the case where the generated icon
