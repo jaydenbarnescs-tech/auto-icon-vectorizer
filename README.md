@@ -54,7 +54,8 @@ Use this project when:
   screenshot, or mockup
 - the goal is clean HTML/SVG that can be inserted into a web page
 - the icon should be separated from a noisy or AI-generated background
-- the icon is mostly one foreground color
+- the icon is a single-color foreground shape, including outline, filled, or
+  same-color fill+stroke icons
 
 Choose a different tool when:
 
@@ -69,7 +70,8 @@ Choose a different tool when:
 Assumptions:
 
 - the input is already cropped around one icon
-- the icon foreground is mostly one visual color
+- the icon foreground is one visual color; the model recovers one foreground
+  mask and the SVG output uses one fill color
 - the icon can be outline, filled, or a same-color fill+stroke hybrid
 - the background can be noisy, colorful, or textured, but it must still contain
   enough color or contrast evidence to separate it from the icon
@@ -120,6 +122,31 @@ background, card, button, or CSS surface. Visibility still depends on the icon
 color having enough contrast with the target background.
 
 ![transparent SVG backgrounds](examples/transparent-backgrounds.png)
+
+## Icon Color
+
+By default, the vectorizer estimates the icon's original foreground color from
+the recovered mask and writes that color into the SVG paths. You can override
+that output color at the CLI or API level without changing the segmentation
+model or Potrace trace.
+
+```bash
+auto-icon-vectorizer path/to/icon-crop.png --icon-color '#111827' > icon.svg
+auto-icon-vectorizer path/to/icon-crop.png --stdout html --icon-color currentColor
+```
+
+Accepted color values are hex colors, CSS color names, `currentColor`, and
+simple CSS variables such as `var(--icon-color)`. Use `currentColor` when the
+HTML wrapper should inherit color from CSS:
+
+```html
+<span class="feature-icon" style="color:#2563eb">
+  <svg ...><path fill="currentColor" ... /></svg>
+</span>
+```
+
+The output still contains one foreground color. This project does not split a
+multicolor logo into separate SVG layers.
 
 ## Results
 
@@ -180,7 +207,8 @@ auto-icon-vectorizer path/to/icon-crop.png \
   --out-prefix examples/my-icon \
   --json examples/my-icon.json \
   --source-id my_icon \
-  --class-name vector-icon
+  --class-name vector-icon \
+  --icon-color '#111827'
 ```
 
 By default, the command prints SVG to stdout.
@@ -196,7 +224,7 @@ The command writes:
 To print the HTML wrapper instead of raw SVG:
 
 ```bash
-auto-icon-vectorizer path/to/icon-crop.png --stdout html
+auto-icon-vectorizer path/to/icon-crop.png --stdout html --icon-color currentColor
 ```
 
 To also write a standalone HTML preview next to the SVG artifacts:
@@ -231,6 +259,7 @@ result = vectorize_icon_crop(
     crop,
     source_id="feature_icon_001",
     class_name="vector-icon feature-icon",
+    icon_color="#111827",
     output_prefix=Path("out/feature_icon_001"),
     mask_mode="auto",
 )
@@ -257,6 +286,8 @@ The return value is designed for apps that generate or edit web pages:
         "maskStrategy": "filled-silhouette-unet",
         "foregroundPixels": 5183,
         "strokeColor": "#c84a2b",
+        "outputColor": "#111827",
+        "colorOverride": "#111827",
         "candidateScores": [...]
     }
 }
@@ -275,7 +306,7 @@ Good inputs:
 
 - a crop around a single UI icon, from small UI captures to larger source crops
 - icon can be on dark, light, noisy, textured, or colorful AI-generated backgrounds
-- icon foreground is mostly one visual color
+- icon foreground is one visual color
 - icon can be outline, filled, or a same-color fill+stroke hybrid
 
 Bad inputs:
@@ -304,7 +335,8 @@ Short version:
 4. Run the filled-silhouette gated U-Net branch.
 5. Clean each mask using median filtering, component filtering, small-hole
    handling, and Potrace-specific preprocessing.
-6. Estimate the icon stroke/fill color from masked pixels.
+6. Estimate the icon stroke/fill color from masked pixels, or apply the caller's
+   output color override.
 7. Trace each selected mask with Potrace.
 8. Render the SVG back over an inpainted background estimate and score the
    reconstruction.
@@ -329,7 +361,35 @@ vector tracing:
   centers or tag cutouts.
 - **Potrace** converts the final binary mask into smooth SVG paths.
 - **Color estimation** samples the recovered foreground so the SVG keeps the
-  icon's original visual color instead of defaulting to black.
+  icon's original visual color instead of defaulting to black. Callers can
+  override this single output color with `--icon-color` or `icon_color=...`.
+
+## Training Data Shape
+
+The neural networks are trained as foreground/background segmenters, not
+multicolor vectorizers. The training target is a binary alpha mask: icon pixels
+versus background pixels. The color of the icon is used as evidence for
+separation, but the model is not trained to preserve separate red, blue, green,
+or gradient regions inside one icon.
+
+The public stroke-corpus generator draws each outline icon with one foreground
+color over varied dark, light, striped, dotted, gradient, and noisy backgrounds.
+The filled-silhouette training script generates filled shapes, cutouts, and
+same-color hybrid-style silhouettes using one foreground color per icon. This
+matches the shipped output contract: one recovered mask traced into transparent
+SVG paths with one fill color.
+
+When training your own checkpoint, prepare crops and truth masks with the same
+contract:
+
+- one cropped icon per image
+- one dominant foreground color for the icon
+- binary alpha truth mask marking all foreground pixels
+- varied backgrounds that represent the screenshots or AI-generated UI images
+  where the model will be used
+
+Multicolor logos can still be converted into one-color silhouettes, but this is
+a lossy fallback rather than the intended use case.
 
 This is a practical hybrid pipeline. It is not intended to replace general
 image vectorizers, full-scene segmentation models, or SVG-code foundation
@@ -348,6 +408,7 @@ Works well for:
 - simple holes/cutouts such as map-pin centers or tag holes
 - noisy AI-generated backgrounds where the icon color is consistent
 - returning transparent SVG paths without copying the background
+- overriding the final SVG/HTML color with a CLI/API argument
 
 Known weak points:
 

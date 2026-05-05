@@ -112,8 +112,11 @@ designer-editable icon source.
 
 ### It Does Not Preserve Multiple Foreground Colors
 
-The current SVG output uses one estimated foreground color. True multicolor
-logos or icons where each color must stay separate are out of scope.
+The current SVG output uses one foreground fill color. By default that color is
+estimated from the recovered mask. It can also be overridden with
+`--icon-color` or `icon_color=...`, including `currentColor` for CSS-driven
+HTML. True multicolor logos or icons where each color must stay separate are
+out of scope.
 
 ### It Does Not Reconstruct Missing Information
 

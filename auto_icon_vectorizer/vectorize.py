@@ -39,6 +39,7 @@ def vectorize_icon_crop(
     class_name: str = "vector-icon",
     title: str | None = None,
     aria_label: str | None = None,
+    icon_color: str | None = None,
     output_prefix: Path | None = None,
     mask_mode: str = "auto",
     write_html_artifact: bool = True,
@@ -46,13 +47,22 @@ def vectorize_icon_crop(
     """Convert an arbitrary-size icon crop to SVG and inline SVG HTML."""
 
     trace = _load_runtime()
+    color_override = _normalize_icon_color(icon_color)
     size = int(trace.SIZE)
     source = trace.canonical_image(crop.convert("RGB"), size)
     selected = _select_candidate(trace, source, mask_mode)
     mask = selected["mask"]
     svg = selected["svg"]
     svg = _prepare_svg(svg, title=title, aria_label=aria_label)
-    html = _wrap_svg(svg, class_name=class_name, source_id=source_id or node_id, renderer=selected["renderer"])
+    if color_override:
+        svg = _recolor_svg(svg, color_override)
+    html = _wrap_svg(
+        svg,
+        class_name=class_name,
+        source_id=source_id or node_id,
+        renderer=selected["renderer"],
+        icon_color=color_override,
+    )
     artifacts = (
         _write_artifacts(trace, source, mask, svg, html, Path(output_prefix), write_html=write_html_artifact)
         if output_prefix
@@ -86,6 +96,8 @@ def vectorize_icon_crop(
             "foregroundRatio": round(float(mask.mean()), 6),
             "maskThickness": round(float(selected["thickness"]), 4),
             "strokeColor": selected["stroke_color"],
+            "outputColor": color_override or selected["stroke_color"],
+            "colorOverride": color_override,
             "potraceOptions": selected["potrace_options"],
             "pathCount": int(svg.count("<path")),
             "selectionScore": selected.get("selection_score"),
@@ -305,12 +317,56 @@ def _filled_silhouette_mask(source: Image.Image) -> Any | None:
         return None
 
 
-def _wrap_svg(svg: str, *, class_name: str, source_id: str | None, renderer: str) -> str:
+def _normalize_icon_color(icon_color: str | None) -> str | None:
+    if icon_color is None:
+        return None
+    value = icon_color.strip()
+    if not value:
+        return None
+    if re.fullmatch(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})", value):
+        return value.lower()
+    if value.lower() == "currentcolor":
+        return "currentColor"
+    if re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{0,63}", value):
+        return value
+    if re.fullmatch(r"var\(--[A-Za-z0-9_-]{1,80}\)", value):
+        return value
+    raise ValueError("icon_color must be a hex color, CSS color name, currentColor, or var(--name)")
+
+
+def _recolor_svg(svg: str, icon_color: str) -> str:
+    escaped = html_lib.escape(icon_color, quote=True)
+
+    def replace_double(match: re.Match[str]) -> str:
+        return match.group(0) if match.group(1).lower() == "none" else f'fill="{escaped}"'
+
+    def replace_single(match: re.Match[str]) -> str:
+        return match.group(0) if match.group(1).lower() == "none" else f"fill='{escaped}'"
+
+    def replace_style(match: re.Match[str]) -> str:
+        return match.group(0) if match.group(1).lower() == "none" else f"fill:{escaped}"
+
+    recolored = re.sub(r'fill="([^"]*)"', replace_double, svg)
+    recolored = re.sub(r"fill='([^']*)'", replace_single, recolored)
+    recolored = re.sub(r"fill:\s*([^;\"']+)", replace_style, recolored)
+    return recolored
+
+
+def _wrap_svg(
+    svg: str,
+    *,
+    class_name: str,
+    source_id: str | None,
+    renderer: str,
+    icon_color: str | None,
+) -> str:
     classes = _normalize_classes(class_name)
     attrs = [
         f'class="{html_lib.escape(classes, quote=True)}"',
         f'data-vectorizer="{html_lib.escape(renderer, quote=True)}"',
     ]
+    if icon_color:
+        attrs.append(f'data-icon-color="{html_lib.escape(icon_color, quote=True)}"')
     if source_id:
         attrs.append(f'data-source-id="{html_lib.escape(source_id, quote=True)}"')
     return f"<span {' '.join(attrs)}>{svg}</span>"
@@ -368,20 +424,31 @@ def main() -> None:
     parser.add_argument("--class-name", default="vector-icon")
     parser.add_argument("--title", default=None)
     parser.add_argument("--aria-label", default=None)
+    parser.add_argument(
+        "--icon-color",
+        "--color",
+        dest="icon_color",
+        default=None,
+        help="Override the output icon color, e.g. #111827, red, currentColor, or var(--icon-color).",
+    )
     parser.add_argument("--mask-mode", choices=["auto", "stroke", "filled"], default="auto")
     args = parser.parse_args()
 
     crop = Image.open(args.image).convert("RGB")
-    result = vectorize_icon_crop(
-        crop,
-        source_id=args.source_id or args.node_id,
-        class_name=args.class_name,
-        title=args.title,
-        aria_label=args.aria_label,
-        output_prefix=args.out_prefix,
-        mask_mode=args.mask_mode,
-        write_html_artifact=args.write_html,
-    )
+    try:
+        result = vectorize_icon_crop(
+            crop,
+            source_id=args.source_id or args.node_id,
+            class_name=args.class_name,
+            title=args.title,
+            aria_label=args.aria_label,
+            icon_color=args.icon_color,
+            output_prefix=args.out_prefix,
+            mask_mode=args.mask_mode,
+            write_html_artifact=args.write_html,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     payload = json.dumps(result, ensure_ascii=False, indent=2)
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)

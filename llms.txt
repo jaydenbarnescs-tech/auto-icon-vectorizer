@@ -4,7 +4,7 @@ Auto Icon Vectorizer recovers blurry AI-generated UI icon crops as clean SVG and
 
 ## Best Fit
 
-Use this project when an AI-generated UI image, screenshot, or mockup contains a style-matched icon that only exists as blurry raster pixels. The tool isolates that icon from the background, traces it with Potrace, and returns scalable SVG plus an optional HTML wrapper for web pages.
+Use this project when an AI-generated UI image, screenshot, or mockup contains a style-matched single-color icon that only exists as blurry raster pixels. The tool isolates that icon from the background, traces it with Potrace, and returns scalable SVG plus an optional HTML wrapper for web pages.
 
 ## Not A Good Fit
 
@@ -39,13 +39,19 @@ svg = result["svg"]
 html = result["html"]
 ```
 
+Pass `icon_color="#111827"` to override the single output fill color. Pass
+`icon_color="currentColor"` when the inline SVG should inherit CSS color from
+its HTML wrapper or parent element.
+
 ## CLI
 
 ```bash
-auto-icon-vectorizer icon-crop.png --out-prefix out/icon --json out/icon.json
+auto-icon-vectorizer icon-crop.png --out-prefix out/icon --json out/icon.json --icon-color '#111827'
 ```
 
-The CLI prints SVG by default. Use `--stdout html` for the HTML wrapper or `--stdout json` for diagnostics.
+The CLI prints SVG by default. Use `--stdout html` for the HTML wrapper or
+`--stdout json` for diagnostics. The output SVG is transparent and contains one
+foreground fill color.
 
 ## Fresh Clone Setup
 
@@ -62,3 +68,7 @@ for retraining. Generate a public stroke-training corpus with:
 ```bash
 python3 scripts/generate_public_training_corpus.py --count 240
 ```
+
+Training data should use one cropped icon per image, one dominant icon
+foreground color, and one binary alpha truth mask. The public generators match
+that assumption.

@@ -23,11 +23,16 @@ Output:
 - `svg`: raw SVG only
 - `paths`: simple metadata about the generated Potrace paths
 - `diagnostics`: selected branch, mask stats, stroke color, Potrace options,
-  visual-diff scores, and optional artifact paths
+  output color, visual-diff scores, and optional artifact paths
 
 Raw SVG is the default CLI output. The returned HTML wrapper is available for
 web apps, site builders, and design tools that want one DOM-ready string with
 CSS and metadata hooks.
+
+The output is a single-color transparent SVG. By default that color is estimated
+from the recovered foreground pixels. Callers can override it with
+`--icon-color` on the CLI or `icon_color=...` in the Python API. Passing
+`currentColor` makes the inline SVG inherit color from surrounding CSS.
 
 ## Branch 1: Stroke / Outline Segmentation
 
@@ -179,12 +184,24 @@ The goal is to smooth jagged mask boundaries without erasing icon features.
 The mask defines the foreground pixels. The algorithm estimates a single
 foreground color from those pixels and injects it into the SVG paths.
 
+If the caller passes a color override, the tracing and candidate selection stay
+the same, but the final SVG path fill is replaced with the requested color. The
+diagnostics keep both values:
+
+- `strokeColor`: the estimated color from the original crop
+- `outputColor`: the color actually written into the returned SVG
+- `colorOverride`: the caller-provided color, or `null`
+
 This is why the SVG does not copy the background. The background is only used
 for scoring and debugging.
 
 The returned SVG contains foreground paths only. There is no background
 rectangle, so the icon background is transparent when rendered by a browser or
 SVG renderer.
+
+This is also why the project assumes a single visual foreground color. It
+recovers one foreground mask and emits one output fill color. It does not
+preserve multicolor logos as separate SVG layers.
 
 ## Visual-Diff Scoring
 

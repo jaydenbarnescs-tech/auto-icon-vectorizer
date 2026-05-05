@@ -34,7 +34,8 @@ def main() -> None:
 
     reports = generate_reports(args.count, args.seed, args.out_dir)
     payload = {
-        "description": "Synthetic public corpus for retraining the stroke gated U-Net branch.",
+        "description": "Synthetic public corpus for retraining the stroke gated U-Net branch on single-color icon foreground masks.",
+        "foregroundContract": "one cropped icon, one dominant foreground color, one binary alpha truth mask",
         "count": len(reports),
         "reports": reports,
     }

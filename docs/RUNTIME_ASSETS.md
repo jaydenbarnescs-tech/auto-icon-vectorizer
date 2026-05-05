@@ -67,6 +67,17 @@ The command prints SVG to stdout and writes `out/sample-icon.svg`,
 Normal users do not need this. Use these commands only if you want to retrain or
 modify the neural networks.
 
+Training data should match the output contract used by the vectorizer:
+
+- one cropped icon per source image
+- one dominant foreground color for the whole icon
+- one binary foreground mask in the truth alpha channel
+- varied backgrounds that represent the generated UI images, screenshots, or
+  mockups where the model will run
+
+The models learn foreground/background segmentation. They do not learn separate
+SVG layers for multicolor logos.
+
 ### Stroke / Outline Branch
 
 The stroke branch expects a report file at:
@@ -87,6 +98,9 @@ Generate a public synthetic corpus:
 python3 scripts/generate_public_training_corpus.py --count 240
 ```
 
+That generator draws outline icons with one foreground color over varied
+background families, matching the single-color icon assumption.
+
 Then retrain:
 
 ```bash
@@ -104,7 +118,9 @@ This creates:
 ### Filled / Silhouette Branch
 
 The filled branch has its own synthetic generator built into the training
-script. It does not require `truth-stress-eval`.
+script. It does not require `truth-stress-eval`. It also draws one foreground
+color per generated filled icon, including cutout and same-color hybrid-style
+cases.
 
 ```bash
 cd auto_icon_vectorizer/runtime
@@ -137,7 +153,8 @@ this shape:
 ```
 
 `truthIcon` should be an RGBA image. The alpha channel is treated as the ground
-truth mask.
+truth mask. Use one alpha mask for the whole icon foreground; do not encode
+separate color layers.
 
 ## What An AI Agent Should Do First
 
