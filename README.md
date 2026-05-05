@@ -7,6 +7,28 @@ takes one cropped raster image that already contains a single UI icon, removes
 the background, traces the recovered foreground mask, and returns both raw SVG
 and an HTML wrapper containing that same inline SVG.
 
+## Why This Exists
+
+This project is mainly for AI-generated UI images and screenshot-to-code
+workflows.
+
+Image models can generate UI mockups where the icons match the page's visual
+style, color, lighting, and theme. The problem is that those icons usually only
+exist as small blurry raster pixels inside the generated image. Replacing them
+with a stock icon from a library can be cleaner, but it can also change the
+look of the design. Asking an image model to redraw every icon is slower, more
+expensive, less reproducible, and still leaves the page with raster image
+assets.
+
+Auto Icon Vectorizer takes the icon that already exists in the generated UI
+image and turns it into a lightweight SVG. That gives the web page a scalable,
+fast-loading asset while preserving more of the style that was present in the
+original generated design.
+
+If a clean source icon already exists, use that source icon. This tool is most
+useful when the icon only exists as pixels in a generated image, screenshot, or
+mockup and the goal is to recover a usable web asset from those pixels.
+
 The problem it solves is narrower than general image vectorization. Existing
 open source tools are already strong at tracing clean bitmaps, scans, logos,
 pixel art, or full-color artwork:
@@ -30,13 +52,16 @@ final vector path.
 
 Use this project when:
 
-- an app already has a small crop around an icon
+- an app already has a small crop around an icon from an AI-generated UI image,
+  screenshot, or mockup
 - the goal is clean HTML/SVG that can be inserted into a web page
 - the icon should be separated from a noisy or AI-generated background
 - the icon is mostly one foreground color
 
 Choose a different tool when:
 
+- a clean SVG, font icon, or icon-library match already exists and style drift
+  is acceptable
 - the input is a full photo, illustration, scan, or complex logo
 - the desired output is a fully editable SVG rebuilt from circles, lines,
   polygons, text, and named layers

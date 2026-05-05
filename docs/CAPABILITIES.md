@@ -3,6 +3,16 @@
 This page is written for someone deciding whether to use this tool in an app,
 website, or design tool.
 
+## Primary Use Case
+
+The strongest use case is an AI-generated UI image, screenshot, or mockup where
+the icon visually belongs to the design but only exists as a small raster crop.
+
+Use this tool when preserving that generated style matters more than replacing
+the icon with a stock SVG from an icon library. If a clean source icon already
+exists and matching the generated style is not important, the source icon is
+usually the better asset.
+
 ## What It Handles Well
 
 ### Outline Icons
